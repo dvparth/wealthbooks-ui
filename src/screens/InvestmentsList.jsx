@@ -41,7 +41,7 @@ const getInvestmentTypeName = (investmentTypeId) => {
  * Displays all investments in a mobile-friendly table format
  * Shows: Name, Type, Principal, Start Date, Maturity Date, Status
  */
-export default function InvestmentsList() {
+export default function InvestmentsList({ onSelectInvestment }) {
   const [filters, setFilters] = useState({ ownerId: '', bankId: '', status: '', typeId: '', startYear: '', maturityYear: '' });
   const [sortBy, setSortBy] = useState({ key: 'maturityDate', direction: 'desc' });
 
@@ -291,7 +291,21 @@ export default function InvestmentsList() {
           </thead>
           <tbody>
             {sorted.map((investment) => (
-              <tr key={investment.id} className={`status-${investment.status}`} role="row">
+              <tr
+                key={investment.id}
+                className={`status-${investment.status}`}
+                role="row"
+                onClick={() => onSelectInvestment && onSelectInvestment(investment.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectInvestment && onSelectInvestment(investment.id);
+                  }
+                }}
+                tabIndex="0"
+                style={{ cursor: 'pointer' }}
+                aria-label={`Investment ${investment.externalInvestmentId || investment.id} - ${investment.status}. Click to view details.`}
+              >
                 <td className="cell-id">{investment.externalInvestmentId || investment.id}</td>
                 <td className="cell-name">{mockOwners.find((o) => o.id === investment.ownerId)?.name || '—'}</td>
                 <td className="cell-name">{mockBanks.find((b) => b.id === investment.bankId)?.name || '—'}</td>

@@ -1,0 +1,439 @@
+/* InvestmentDetail Screen Styles */
+
+.investment-detail-container {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  padding: 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Header with back button */
+.detail-header {
+  margin-bottom: 1.5rem;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #374151;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.back-button:hover {
+  background-color: #1f2937;
+}
+
+.back-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Investment Summary Card */
+.investment-summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-row:last-child {
+  margin-bottom: 0;
+}
+
+.summary-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-value {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.summary-value.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status badge */
+.status-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: fit-content;
+}
+
+.status-badge.status-active {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.status-badge.status-closed {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+/* Cashflow Timeline */
+.cashflow-timeline {
+  margin-bottom: 2rem;
+}
+
+.timeline-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1.5rem;
+}
+
+.no-cashflows {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+/* Financial Year Section */
+.fy-section {
+  margin-bottom: 2rem;
+}
+
+.fy-header {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  background: #f3f4f6;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border-left: 4px solid #3b82f6;
+}
+
+.cashflow-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cashflow-row {
+  display: grid;
+  grid-template-columns: 100px 80px 120px 80px 100px;
+  gap: 1rem;
+  align-items: center;
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #e5e7eb;
+  font-size: 0.875rem;
+}
+
+.cashflow-row.cf-source-system {
+  background-color: #f9fafb;
+}
+
+.cashflow-row.cf-source-manual {
+  background-color: white;
+}
+
+/* Cashflow type styling */
+.cashflow-row.cf-type-interest {
+  border-left-color: #3b82f6;
+}
+
+.cashflow-row.cf-type-tds {
+  border-left-color: #ef4444;
+}
+
+.cashflow-row.cf-type-maturity {
+  border-left-color: #10b981;
+}
+
+.cashflow-row.cf-type-reinvestment {
+  border-left-color: #f59e0b;
+}
+
+.cashflow-row.cf-type-adjustment {
+  border-left-color: #8b5cf6;
+}
+
+.cashflow-row.cf-type-accrued-interest {
+  border-left-color: #6b7280;
+}
+
+.cashflow-row.accrued-placeholder {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.cf-date {
+  font-weight: 500;
+  color: #374151;
+}
+
+.cf-type {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #6b7280;
+}
+
+.cf-amount {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Type-based amount colors */
+.cf-amount.cf-type-interest {
+  color: #166534;
+}
+
+.cf-amount.cf-type-maturity {
+  color: #166534;
+}
+
+.cf-amount.cf-type-tds {
+  color: #991b1b;
+}
+
+.cf-amount.cf-type-reinvestment {
+  color: #92400e;
+}
+
+.cf-amount.cf-type-adjustment {
+  color: #d97706;
+}
+
+.cf-amount.cf-type-accrued-interest {
+  color: #6b7280;
+}
+
+.cf-source {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: capitalize;
+}
+
+.cf-status {
+  display: flex;
+  justify-content: center;
+}
+
+.cf-detail {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.cf-detail .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  color: #374151;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.status-pill.cf-status-planned {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.status-pill.cf-status-confirmed {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.status-pill.cf-status-adjusted {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* Audit Summary */
+.audit-summary {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.summary-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1rem;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111827;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-value.positive {
+  color: #166534;
+}
+
+.stat-value.negative {
+  color: #991b1b;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .investment-detail-container {
+    padding: 0.75rem;
+  }
+
+  .investment-summary-card {
+    padding: 1rem;
+  }
+
+  .summary-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .cashflow-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .cf-amount {
+    text-align: left;
+  }
+
+  .summary-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .investment-detail-container {
+    padding: 0.5rem;
+  }
+
+  .back-button {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .investment-summary-card {
+    padding: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .summary-row {
+    margin-bottom: 1rem;
+  }
+
+  .timeline-title,
+  .summary-title {
+    font-size: 1rem;
+  }
+
+  .fy-header {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .cashflow-row {
+    gap: 0.35rem;
+    padding: 0.6rem;
+  }
+
+  .cf-date,
+  .cf-type,
+  .cf-source {
+    font-size: 0.75rem;
+  }
+
+  .cf-amount {
+    font-size: 0.85rem;
+  }
+
+  .status-pill {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.65rem;
+  }
+
+  .stat-item {
+    padding: 0.75rem;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+  }
+
+  .stat-value {
+    font-size: 1rem;
+  }
+}
