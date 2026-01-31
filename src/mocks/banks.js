@@ -25,6 +25,32 @@ export const mockBanks = [
     name: 'Kotak Mahindra Bank',
     branch: 'Chennai - Nungambakkam',
   }),
+  // Added banks with simple IDs used by regenerated mocks
+  createBank({
+    id: 'bank-001',
+    name: 'ICICI Bank',
+    branch: 'Mumbai - Andheri',
+  }),
+  createBank({
+    id: 'bank-002',
+    name: 'HDFC Bank',
+    branch: 'Mumbai - Fort',
+  }),
+  createBank({
+    id: 'bank-003',
+    name: 'State Bank of India',
+    branch: 'Bangalore - Residency Road',
+  }),
+  createBank({
+    id: 'bank-004',
+    name: 'Axis Bank',
+    branch: 'Delhi - Connaught Place',
+  }),
+  createBank({
+    id: 'bank-005',
+    name: 'Kotak Mahindra Bank',
+    branch: 'Chennai - Nungambakkam',
+  }),
 ];
 
 /**

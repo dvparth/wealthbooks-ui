@@ -130,15 +130,44 @@
   margin-bottom: 2rem;
 }
 
-.fy-header {
+.fy-header-button {
+  width: 100%;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
   font-size: 1rem;
   font-weight: 600;
   color: #374151;
-  background: #f3f4f6;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+  transition: all 0.2s ease;
   border-left: 4px solid #3b82f6;
+  margin-bottom: 1rem;
+}
+
+.fy-header-button:hover {
+  background-color: #e5e7eb;
+}
+
+.fy-header-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.fy-toggle-icon {
+  display: inline-flex;
+  width: 1.25rem;
+  justify-content: center;
+  transition: transform 0.15s ease;
+  font-size: 0.75rem;
+}
+
+.fy-header-text {
+  flex: 1;
 }
 
 .cashflow-rows {
@@ -167,6 +196,20 @@
   background-color: white;
 }
 
+.cashflow-row.preview-row {
+  opacity: 0.65;
+  background-color: #fffbeb;
+  border-left: 3px dashed #d97706;
+  border-right: 1px dashed #fed7aa;
+}
+
+.cashflow-row.preview-row .cf-date,
+.cashflow-row.preview-row .cf-type,
+.cashflow-row.preview-row .cf-amount,
+.cashflow-row.preview-row .cf-source {
+  font-style: italic;
+}
+
 /* Cashflow type styling */
 .cashflow-row.cf-type-interest {
   border-left-color: #3b82f6;
@@ -192,6 +235,10 @@
   border-left-color: #6b7280;
 }
 
+.cashflow-row.cf-type-accrued {
+  border-left-color: #9ca3af;
+}
+
 .cashflow-row.accrued-placeholder {
   opacity: 0.7;
   font-style: italic;
@@ -207,6 +254,20 @@
   font-weight: 600;
   text-transform: capitalize;
   color: #6b7280;
+}
+
+.preview-label {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  background-color: #fed7aa;
+  color: #b45309;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-right: 0.25rem;
+  border: 1px solid #fdba74;
 }
 
 .cf-amount {
@@ -259,6 +320,15 @@
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid #e5e7eb;
+}
+
+.cf-detail.period-note {
+  color: #8b5cf6;
+  font-style: italic;
+  font-weight: 500;
+  border-top: none;
+  padding-top: 0.25rem;
+  margin-top: 0.25rem;
 }
 
 .cf-detail .mono {

@@ -6,8 +6,7 @@ import {
 } from '../models/InvestmentType.js';
 
 /**
- * Mock investment types for WealthBooks
- * Includes all supported investment products
+ * Mock investment types for WealthBooks (normalized)
  */
 export const mockInvestmentTypes = [
   exampleFixedDeposit,

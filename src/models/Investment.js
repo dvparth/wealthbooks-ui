@@ -54,6 +54,6 @@ export const exampleInvestmentFD = createInvestment({
   interestRate: 6.5,
   interestCalculationFrequency: INTEREST_FREQUENCIES.QUARTERLY,
   interestPayoutFrequency: INTEREST_FREQUENCIES.MATURITY,
-  expectedMaturityAmount: 565000, // realistic estimate: principal + approx interest
+  expectedMaturityAmount: 568241.90, // AUDIT FIX: updated to computed compounded maturity
   status: INVESTMENT_STATUS.ACTIVE,
 });

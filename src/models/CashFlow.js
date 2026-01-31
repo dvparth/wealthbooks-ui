@@ -25,6 +25,7 @@ export const createCashFlow = (data) => {
     source: data.source || CASHFLOW_SOURCE.SYSTEM,
     status: data.status || CASHFLOW_STATUS.PLANNED,
     adjustsCashflowId: data.adjustsCashflowId || null,
+    reinvestedInvestmentId: data.reinvestedInvestmentId || null,
   };
 };
 

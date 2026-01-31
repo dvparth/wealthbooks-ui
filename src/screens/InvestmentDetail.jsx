@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { mockInvestments } from '../mocks/investments.js';
 import { mockCashFlows } from '../mocks/cashflows.js';
 import { mockInvestmentTypes } from '../mocks/investmentTypes.js';
 import { mockBanks } from '../mocks/banks.js';
 import { mockOwners } from '../mocks/owners.js';
+import { generateExpectedInterestSchedule } from '../utils/interestEngine.js';
 import '../styles/InvestmentDetail.css';
 
 /**
@@ -78,10 +79,24 @@ export default function InvestmentDetail({ investmentId, onBack }) {
     [investmentId]
   );
 
+  const today = new Date();
+
+  const [expandedFYs, setExpandedFYs] = useState(() => {
+    // Get current FY
+    const month = today.getMonth();
+    const year = today.getFullYear();
+    const currentFY = month >= 3 
+      ? `FY${year}-${String(year + 1).slice(-2)}`
+      : `FY${year - 1}-${String(year).slice(-2)}`;
+    return new Set([currentFY]);
+  });
+
   const cashflows = useMemo(() => {
     if (!investment) return [];
-    const filtered = mockCashFlows.filter((cf) => cf.investmentId === investmentId);
-    return filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+    const actual = mockCashFlows.filter((cf) => cf.investmentId === investmentId);
+    const preview = generateExpectedInterestSchedule(investment, actual);
+    const combined = [...actual, ...preview];
+    return combined.sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [investment, investmentId]);
 
   const groupedByFY = useMemo(() => {
@@ -93,6 +108,16 @@ export default function InvestmentDetail({ investmentId, onBack }) {
     });
     return groups;
   }, [cashflows]);
+
+  const toggleFY = (fy) => {
+    const newSet = new Set(expandedFYs);
+    if (newSet.has(fy)) {
+      newSet.delete(fy);
+    } else {
+      newSet.add(fy);
+    }
+    setExpandedFYs(newSet);
+  };
 
   if (!investment) {
     return (
@@ -200,18 +225,37 @@ export default function InvestmentDetail({ investmentId, onBack }) {
         ) : (
           Object.keys(groupedByFY)
             .sort()
-            .map((fy) => (
-              <div key={fy} className="fy-section">
-                <h3 className="fy-header">{getFinancialYearRange(groupedByFY[fy][0].date)}</h3>
-                <div className="cashflow-rows">
-                  {groupedByFY[fy].map((cf) => (
+            .map((fy) => {
+              const isExpanded = expandedFYs.has(fy);
+              return (
+                <div key={fy} className="fy-section">
+                  <button
+                    className="fy-header-button"
+                    onClick={() => toggleFY(fy)}
+                    aria-expanded={isExpanded}
+                    aria-controls={`fy-content-${fy}`}
+                  >
+                    <span className="fy-toggle-icon">{isExpanded ? '▼' : '▶'}</span>
+                    <span className="fy-header-text">{getFinancialYearRange(groupedByFY[fy][0].date)}</span>
+                  </button>
+                  {isExpanded && (
+                    <div id={`fy-content-${fy}`} className="cashflow-rows">
+                      {groupedByFY[fy].map((cf) => (
                     <div
                       key={cf.id}
-                      className={`cashflow-row cf-type-${cf.type} cf-source-${cf.source} cf-status-${cf.status}`}
+                      className={`cashflow-row cf-type-${cf.type} cf-source-${cf.source} cf-status-${cf.status} ${cf.isPreview ? 'preview-row' : ''}`}
                       role="listitem"
                     >
                       <div className="cf-date">{formatDate(cf.date)}</div>
-                      <div className="cf-type">{cf.type}</div>
+                      <div className="cf-type">
+                        {cf.isPreview ? (
+                          <>
+                            <span className="preview-label">Expected</span> {cf.type}
+                          </>
+                        ) : (
+                          cf.type
+                        )}
+                      </div>
                       <div className={`cf-amount cf-type-${cf.type}`}>
                         {formatCurrency(cf.amount)}
                       </div>
@@ -226,26 +270,18 @@ export default function InvestmentDetail({ investmentId, onBack }) {
                           Reinvested into: <span className="mono">{cf.reinvestedInvestmentId}</span>
                         </div>
                       )}
+                      {cf.periodNote && (
+                        <div className="cf-detail period-note">
+                          {cf.periodNote}
+                        </div>
+                      )}
                     </div>
                   ))}
-
-                  {investment.interestPayoutFrequency === 'maturity' && groupedByFY[fy].length > 0 && (
-                    <div className="cashflow-row cf-type-accrued-interest cf-source-system cf-status-planned accrued-placeholder" role="listitem">
-                      <div className="cf-date">On maturity</div>
-                      <div className="cf-type">Accrued Interest</div>
-                      <div className="cf-amount cf-type-accrued-interest">—</div>
-                      <div className="cf-source">system</div>
-                      <div className="cf-status">
-                        <span className="status-pill cf-status-planned" aria-label="Status: planned">
-                          planned
-                        </span>
-                      </div>
-                      <div className="cf-detail">Not yet paid (accrued)</div>
                     </div>
                   )}
                 </div>
-              </div>
-            ))
+              );
+            })
         )}
       </div>
 
