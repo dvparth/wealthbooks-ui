@@ -1,0 +1,59 @@
+import { generateId, CASHFLOW_TYPES, CASHFLOW_STATUS, CASHFLOW_SOURCE } from './constants.js';
+
+/**
+ * Factory function to create a CashFlow object
+ * @param {Object} data
+ * @param {string} data.investmentId - Reference to Investment.id
+ * @param {string} data.date - ISO 8601 date string (YYYY-MM-DD)
+ * @param {string} data.type - Type of cash flow (principal, interest, tds, maturity, reinvestment, adjustment)
+ * @param {number} data.amount - Amount in currency (positive for inflows, negative for outflows)
+ * @param {string} data.financialYear - Financial year in format YYYY-YY (e.g., 2024-25)
+ * @param {string} [data.source] - Source of cash flow (system | manual), defaults to system
+ * @param {string} [data.status] - Status (planned | confirmed | adjusted), defaults to planned
+ * @param {string} [data.adjustsCashflowId] - Optional ID of cash flow being adjusted (for adjustment type)
+ * @param {string} [data.id] - Optional custom ID, generates UUID if not provided
+ * @returns {Object} CashFlow object
+ */
+export const createCashFlow = (data) => {
+  return {
+    id: data.id || generateId(),
+    investmentId: data.investmentId,
+    date: data.date,
+    type: data.type,
+    amount: data.amount,
+    financialYear: data.financialYear,
+    source: data.source || CASHFLOW_SOURCE.SYSTEM,
+    status: data.status || CASHFLOW_STATUS.PLANNED,
+    adjustsCashflowId: data.adjustsCashflowId || null,
+  };
+};
+
+/**
+ * Example: Quarterly interest received on ICICI FD
+ */
+export const exampleCashFlowInterest = createCashFlow({
+  id: '550e8400-e29b-41d4-a716-446655440401',
+  investmentId: '550e8400-e29b-41d4-a716-446655440301', // ICICI FD investment
+  date: '2024-04-15',
+  type: CASHFLOW_TYPES.INTEREST,
+  amount: 8125.00, // ₹500,000 * 6.5% / 4
+  financialYear: '2024-25',
+  source: CASHFLOW_SOURCE.SYSTEM,
+  status: CASHFLOW_STATUS.CONFIRMED,
+  adjustsCashflowId: null,
+});
+
+/**
+ * Example: Principal received at maturity
+ */
+export const exampleCashFlowMaturity = createCashFlow({
+  id: '550e8400-e29b-41d4-a716-446655440402',
+  investmentId: '550e8400-e29b-41d4-a716-446655440301', // ICICI FD investment
+  date: '2026-01-15',
+  type: CASHFLOW_TYPES.MATURITY,
+  amount: 500000, // Principal returned
+  financialYear: '2025-26',
+  source: CASHFLOW_SOURCE.SYSTEM,
+  status: CASHFLOW_STATUS.PLANNED,
+  adjustsCashflowId: null,
+});
