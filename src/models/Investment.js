@@ -13,6 +13,8 @@ import { generateId, INVESTMENT_STATUS, INTEREST_FREQUENCIES } from './constants
  * @param {number} data.interestRate - Annual interest rate as percentage (e.g., 6.5 for 6.5%)
  * @param {string} data.interestCalculationFrequency - Frequency of interest calculation (monthly, quarterly, yearly, maturity)
  * @param {string} data.interestPayoutFrequency - Frequency of interest payout (monthly, quarterly, yearly, maturity)
+ * @param {string} data.externalInvestmentId - External/legacy investment identifier (e.g., FD123456)
+ * @param {number} [data.expectedMaturityAmount] - Expected amount at maturity (currency)
  * @param {string} [data.status] - Status of investment (active | closed), defaults to active
  * @param {string} [data.id] - Optional custom ID, generates UUID if not provided
  * @returns {Object} Investment object
@@ -20,6 +22,8 @@ import { generateId, INVESTMENT_STATUS, INTEREST_FREQUENCIES } from './constants
 export const createInvestment = (data) => {
   return {
     id: data.id || generateId(),
+    externalInvestmentId: data.externalInvestmentId || null,
+    expectedMaturityAmount: data.expectedMaturityAmount == null ? null : data.expectedMaturityAmount,
     name: data.name,
     investmentTypeId: data.investmentTypeId,
     bankId: data.bankId,
@@ -39,6 +43,7 @@ export const createInvestment = (data) => {
  */
 export const exampleInvestmentFD = createInvestment({
   id: '550e8400-e29b-41d4-a716-446655440301',
+  externalInvestmentId: 'FD123456',
   name: 'ICICI FD - Quarterly Calculation, Maturity Payout',
   investmentTypeId: '550e8400-e29b-41d4-a716-446655440001', // FD type ID
   bankId: '550e8400-e29b-41d4-a716-446655440101', // ICICI Bank ID
@@ -49,5 +54,6 @@ export const exampleInvestmentFD = createInvestment({
   interestRate: 6.5,
   interestCalculationFrequency: INTEREST_FREQUENCIES.QUARTERLY,
   interestPayoutFrequency: INTEREST_FREQUENCIES.MATURITY,
+  expectedMaturityAmount: 565000, // realistic estimate: principal + approx interest
   status: INVESTMENT_STATUS.ACTIVE,
 });
