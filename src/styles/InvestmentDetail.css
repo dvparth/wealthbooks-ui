@@ -5,8 +5,12 @@
   min-height: 100vh;
   background-color: #f8f9fa;
   padding: 1rem;
+  /* Base font rules for visual consistency */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
     'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 15px; /* >= 14px for accessibility */
+  color: #0f172a; /* dark text for strong contrast */
+  line-height: 1.4;
 }
 
 /* Header with back button */
@@ -47,11 +51,91 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: 160px 1fr 160px 1fr;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151; /* darker for prominence and contrast */
+  margin: 0.6rem 0 0.4rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  grid-column: 1 / 5;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.grid-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b5563;
+  text-transform: none;
+}
+
+.grid-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  text-align: right;
+}
+
+/* Keep label columns fixed and ensure value columns do not expand
+   Allow wrapping inside value cells but prevent them from forcing grid to grow */
+.summary-grid {
+  grid-template-columns: 160px 1fr 160px 1fr;
+}
+.summary-grid > .grid-label {
+  /* allow labels to wrap on narrow screens but keep label column constrained */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.summary-grid > .grid-value {
+  min-width: 0; /* allow flexing inside grid without expanding columns */
+  white-space: normal; /* allow wrapping */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* ensure values (including badges) align to right edge */
+}
+
+/* Ensure consistent horizontal inset so right-column labels align with others */
+.summary-grid > .grid-label {
+  padding-left: 0.25rem;
+}
+.summary-grid > .grid-value {
+  padding-right: 0.25rem;
+}
+
+/* ensure each grid row has consistent vertical rhythm */
+.summary-grid > * {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+/* monospace reserved for Investment ID only */
+.grid-value.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
 .summary-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: 1fr 1fr; /* consistent two-column layout */
+  gap: 1rem 1.5rem;
+  margin-bottom: 1rem; /* equal spacing between rows */
+  align-items: center;
 }
 
 .summary-row:last-child {
@@ -59,50 +143,63 @@
 }
 
 .summary-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  /* Each field is a two-column pair: label | value */
+  display: grid;
+  grid-template-columns: 40% 60%;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .summary-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #6b7280;
+  font-size: 14px;
+  font-weight: 600; /* semibold */
+  color: #4b5563; /* muted but high contrast */
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .summary-value {
-  font-size: 1rem;
-  font-weight: 500;
-  color: #111827;
+  font-size: 15px;
+  font-weight: 600; /* semibold for numeric/value emphasis */
+  color: #0f172a; /* strong contrast */
+  text-align: right; /* values on the right column */
 }
 
 .summary-value.mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 /* Status badge */
+
 .status-badge {
-  display: inline-block;
-  padding: 0.35rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   width: fit-content;
+  min-width: 0;
+}
+
+/* Ensure status badge centers within its summary field */
+.summary-field .status-badge {
+  align-self: center;
 }
 
 .status-badge.status-active {
-  background-color: #dcfce7;
-  color: #166534;
+  background-color: #ecfdf5; /* softer green */
+  color: #065f46; /* darker green for contrast */
 }
 
 .status-badge.status-closed {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: #fff1f2; /* softer red */
+  color: #7f1d1d; /* darker red */
 }
 
 /* Cashflow Timeline */
@@ -178,14 +275,14 @@
 
 .cashflow-row {
   display: grid;
-  grid-template-columns: 100px 80px 120px 80px 100px;
+  grid-template-columns: 120px 1fr 140px 80px 100px;
   gap: 1rem;
   align-items: center;
   background: white;
   padding: 1rem;
   border-radius: 8px;
   border-left: 4px solid #e5e7eb;
-  font-size: 0.875rem;
+  font-size: 15px; /* match base font size requirement */
 }
 
 .cashflow-row.cf-source-system {
@@ -250,10 +347,10 @@
 }
 
 .cf-type {
-  font-size: 0.8rem;
+  font-size: 15px;
   font-weight: 600;
   text-transform: capitalize;
-  color: #6b7280;
+  color: #374151; /* ensure contrast */
 }
 
 .preview-label {
@@ -275,6 +372,7 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   text-align: right;
+  color: #0f172a;
 }
 
 /* Type-based amount colors */
@@ -303,8 +401,8 @@
 }
 
 .cf-source {
-  font-size: 0.75rem;
-  color: #6b7280;
+  font-size: 15px;
+  color: #4b5563;
   text-transform: capitalize;
 }
 
@@ -339,9 +437,9 @@
 
 .status-pill {
   display: inline-block;
-  padding: 0.25rem 0.6rem;
+  padding: 0.28rem 0.6rem;
   border-radius: 12px;
-  font-size: 0.7rem;
+  font-size: 14px;
   font-weight: 600;
   text-transform: capitalize;
   white-space: nowrap;
