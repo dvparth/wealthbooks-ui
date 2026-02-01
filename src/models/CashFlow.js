@@ -28,33 +28,3 @@ export const createCashFlow = (data) => {
     reinvestedInvestmentId: data.reinvestedInvestmentId || null,
   };
 };
-
-/**
- * Example: Quarterly interest received on ICICI FD
- */
-export const exampleCashFlowInterest = createCashFlow({
-  id: '550e8400-e29b-41d4-a716-446655440401',
-  investmentId: '550e8400-e29b-41d4-a716-446655440301', // ICICI FD investment
-  date: '2024-04-15',
-  type: CASHFLOW_TYPES.INTEREST,
-  amount: 8125.00, // ₹500,000 * 6.5% / 4
-  financialYear: '2024-25',
-  source: CASHFLOW_SOURCE.SYSTEM,
-  status: CASHFLOW_STATUS.CONFIRMED,
-  adjustsCashflowId: null,
-});
-
-/**
- * Example: Principal received at maturity
- */
-export const exampleCashFlowMaturity = createCashFlow({
-  id: '550e8400-e29b-41d4-a716-446655440402',
-  investmentId: '550e8400-e29b-41d4-a716-446655440301', // ICICI FD investment
-  date: '2026-01-15',
-  type: CASHFLOW_TYPES.MATURITY,
-  amount: 500000, // Principal returned
-  financialYear: '2025-26',
-  source: CASHFLOW_SOURCE.SYSTEM,
-  status: CASHFLOW_STATUS.PLANNED,
-  adjustsCashflowId: null,
-});

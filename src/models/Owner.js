@@ -13,11 +13,3 @@ export const createOwner = (data) => {
     name: data.name,
   };
 };
-
-/**
- * Example: Primary account holder
- */
-export const exampleOwnerAjay = createOwner({
-  id: '550e8400-e29b-41d4-a716-446655440201',
-  name: 'Ajay Kumar',
-});

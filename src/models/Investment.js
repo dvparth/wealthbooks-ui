@@ -37,23 +37,3 @@ export const createInvestment = (data) => {
     status: data.status || INVESTMENT_STATUS.ACTIVE,
   };
 };
-
-/**
- * Example: ICICI Bank FD for 2 years at 6.5% annual interest, quarterly calculation, maturity payout
- */
-export const exampleInvestmentFD = createInvestment({
-  id: '550e8400-e29b-41d4-a716-446655440301',
-  externalInvestmentId: 'FD123456',
-  name: 'ICICI FD - Quarterly Calculation, Maturity Payout',
-  investmentTypeId: '550e8400-e29b-41d4-a716-446655440001', // FD type ID
-  bankId: '550e8400-e29b-41d4-a716-446655440101', // ICICI Bank ID
-  ownerId: '550e8400-e29b-41d4-a716-446655440201', // Ajay Kumar ID
-  startDate: '2024-01-15',
-  maturityDate: '2026-01-15',
-  principal: 500000,
-  interestRate: 6.5,
-  interestCalculationFrequency: INTEREST_FREQUENCIES.QUARTERLY,
-  interestPayoutFrequency: INTEREST_FREQUENCIES.MATURITY,
-  expectedMaturityAmount: 568241.90, // AUDIT FIX: updated to computed compounded maturity
-  status: INVESTMENT_STATUS.ACTIVE,
-});

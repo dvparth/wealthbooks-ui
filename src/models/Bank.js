@@ -15,12 +15,3 @@ export const createBank = (data) => {
     branch: data.branch,
   };
 };
-
-/**
- * Example: ICICI Bank Bangalore Branch
- */
-export const exampleIciciBank = createBank({
-  id: '550e8400-e29b-41d4-a716-446655440101',
-  name: 'ICICI Bank',
-  branch: 'Bangalore - Koramangala',
-});
