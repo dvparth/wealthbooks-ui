@@ -375,6 +375,16 @@
   color: #0f172a;
 }
 
+/* Visual distinction for negative cashflows (e.g., TDS deductions) */
+.cf-amount-negative {
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.cf-amount-positive {
+  color: #166534;
+}
+
 /* Type-based amount colors */
 .cf-amount.cf-type-interest {
   color: #166534;

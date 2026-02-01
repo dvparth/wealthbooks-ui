@@ -30,6 +30,24 @@ const formatFrequency = (freq) => {
   return String(freq).replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
+const getCashflowTypeLabel = (type) => {
+  const labels = {
+    'principal': 'Principal',
+    'interest_payout': 'Interest Payout',
+    'interest': 'Interest', // Legacy
+    'accrued_interest': 'Accrued Interest',
+    'maturity_payout': 'Maturity Payout',
+    'tds_deduction': 'TDS Deduction',
+    'tds': 'TDS', // Legacy
+    'maturity': 'Maturity', // Legacy
+    'reinvestment': 'Reinvestment',
+    'adjustment': 'Adjustment',
+    'unallocated': 'Unallocated',
+    'closure': 'Closure',
+  };
+  return labels[type] || type;
+};
+
 const getFinancialYear = (dateString) => {
   const date = new Date(dateString);
   const year = date.getFullYear();
@@ -66,23 +84,84 @@ export default function InvestmentDetail({ investmentId, onBack }) {
   const owner = mockOwners.find((o) => o.id === investment?.ownerId);
   const bank = mockBanks.find((b) => b.id === investment?.bankId);
 
-  const cashflows = useMemo(() => {
+  // Get persisted cashflows only (not preview)
+  const persistedCashflows = useMemo(() => {
     if (!investment) return [];
-    const actual = mockCashFlows.filter((cf) => cf.investmentId === investmentId);
-    const preview = generateExpectedInterestSchedule(investment, actual);
-    const combined = [...actual, ...preview];
-    return combined.sort((a, b) => new Date(a.date) - new Date(b.date));
+    return mockCashFlows.filter((cf) => cf.investmentId === investmentId);
   }, [investment, investmentId]);
 
+  // Backfill missing TDS_DEDUCTION cashflows for existing investments
+  // If investment has tds in name or we detect it was created with TDS but has no tds_deduction cashflows
+  // Sort all cashflows globally by date, preserving ledger correctness
+  // Cashflows are sorted globally by date to preserve ledger correctness.
+  // For the same date, interest entries come before TDS deductions.
+  const sortedCashflows = useMemo(() => {
+    const typeOrder = {
+      'principal': 0,
+      'interest_payout': 1,
+      'interest': 1,
+      'accrued_interest': 1,
+      'maturity_payout': 1,
+      'tds_deduction': 2,
+      'tds': 2,
+      'reinvestment': 3,
+      'adjustment': 4,
+      'unallocated': 5,
+      'closure': 6,
+    };
+    
+    return [...persistedCashflows].sort((a, b) => {
+      // Primary: sort by date
+      const dateCompare = new Date(a.date) - new Date(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      
+      // Secondary: for same date, use type order (interest before TDS)
+      const typeA = typeOrder[a.type] ?? 999;
+      const typeB = typeOrder[b.type] ?? 999;
+      return typeA - typeB;
+    });
+  }, [persistedCashflows]);
+
+  // Group sorted cashflows by FY (groups are already in chronological order)
   const groupedByFY = useMemo(() => {
     const groups = {};
-    cashflows.forEach((cf) => {
+    sortedCashflows.forEach((cf) => {
       const fy = getFinancialYear(cf.date);
       if (!groups[fy]) groups[fy] = [];
       groups[fy].push(cf);
     });
     return groups;
-  }, [cashflows]);
+  }, [sortedCashflows]);
+
+  // Calculate FY summaries from persisted cashflows only
+  const fySummaries = useMemo(() => {
+    const summaries = {};
+    
+    Object.entries(groupedByFY).forEach(([fy, cashflows]) => {
+      let interestEarned = 0;
+      let tdsDeducted = 0;
+      
+
+      cashflows.forEach((cf) => {
+        // Sum interest (both interest_payout and accrued_interest types)
+        if (cf.type === 'interest_payout' || cf.type === 'accrued_interest' || cf.type === 'interest') {
+          interestEarned += cf.amount;
+        }
+        // Sum TDS (tds_deduction, tds types)
+        if (cf.type === 'tds_deduction' || cf.type === 'tds') {
+          tdsDeducted += Math.abs(cf.amount); // Make positive for display
+        }
+      });
+      
+      summaries[fy] = {
+        interestEarned: Math.round(interestEarned),
+        tdsDeducted: Math.round(tdsDeducted),
+        netIncome: Math.round(interestEarned - tdsDeducted),
+      };
+    });
+    
+    return summaries;
+  }, [groupedByFY]);
 
   const [expandedFYs, setExpandedFYs] = useState(() => {
     const today = new Date();
@@ -178,6 +257,12 @@ export default function InvestmentDetail({ investmentId, onBack }) {
                   >
                     <span className="fy-toggle-icon">{isExpanded ? '▼' : '▶'}</span>
                     <span className="fy-header-text">{getFinancialYearRange(groupedByFY[fy][0].date)}</span>
+                    {fySummaries[fy] && (
+                      <span className="fy-summary-badge">
+                        Interest: ₹{fySummaries[fy].interestEarned.toLocaleString('en-IN')} 
+                        {fySummaries[fy].tdsDeducted > 0 ? ` | TDS: ₹${fySummaries[fy].tdsDeducted.toLocaleString('en-IN')}` : ''}
+                      </span>
+                    )}
                   </button>
                   {isExpanded && (
                     <div id={`fy-content-${fy}`} className="cashflow-rows">
@@ -191,13 +276,15 @@ export default function InvestmentDetail({ investmentId, onBack }) {
                           <div className="cf-type">
                             {cf.isPreview ? (
                               <>
-                                <span className="preview-label">Expected</span> {cf.type}
+                                <span className="preview-label">Expected</span> {getCashflowTypeLabel(cf.type)}
                               </>
                             ) : (
-                              cf.type
+                              getCashflowTypeLabel(cf.type)
                             )}
                           </div>
-                          <div className={`cf-amount cf-type-${cf.type}`}>{formatCurrency(cf.amount)}</div>
+                          <div className={`cf-amount cf-type-${cf.type} ${cf.amount < 0 ? 'cf-amount-negative' : 'cf-amount-positive'}`}>
+                            {cf.amount < 0 ? '−' : ''}{formatCurrency(Math.abs(cf.amount))}
+                          </div>
                           <div className="cf-source">{cf.source}</div>
                           <div className="cf-status"><span className={`status-pill cf-status-${cf.status}`}>{cf.status}</span></div>
                           {cf.type === 'reinvestment' && cf.reinvestedInvestmentId && (
@@ -214,13 +301,52 @@ export default function InvestmentDetail({ investmentId, onBack }) {
         )}
       </div>
 
+      <div className="fy-summary-section" role="region" aria-label="Financial Year Summary">
+        <h2 className="summary-title">Financial Year Summary</h2>
+        {Object.keys(fySummaries).length === 0 ? (
+          <p style={{ color: '#6b7280' }}>No cashflows to summarize.</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+            {Object.entries(fySummaries)
+              .sort(([fyA], [fyB]) => fyA.localeCompare(fyB))
+              .map(([fy, summary]) => (
+                <div key={fy} style={{ padding: '12px', border: '1px solid #e5e7eb', borderRadius: '4px', background: '#f9fafb' }}>
+                  <strong>{fy}</strong>
+                  <div style={{ marginTop: '8px', fontSize: '0.9em', display: 'grid', gap: '4px' }}>
+                    <div>
+                      <span style={{ color: '#6b7280' }}>Interest Earned:</span>
+                      <span style={{ float: 'right', fontWeight: '500' }}>₹{summary.interestEarned.toLocaleString('en-IN')}</span>
+                    </div>
+                    {summary.tdsDeducted > 0 && (
+                      <div>
+                        <span style={{ color: '#6b7280' }}>TDS Deducted:</span>
+                        <span style={{ float: 'right', color: '#b91c1c' }}>₹{summary.tdsDeducted.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    <div style={{ borderTop: '1px solid #d1d5db', marginTop: '8px', paddingTop: '8px', fontWeight: 'bold' }}>
+                      <span>Net Income:</span>
+                      <span style={{ float: 'right', color: '#16a34a' }}>₹{summary.netIncome.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+
       <div className="audit-summary" role="region" aria-label="Audit summary">
         <h2 className="summary-title">Summary</h2>
         <div className="summary-stats">
-          <div className="stat-item"><span className="stat-label">Total Cashflows</span><span className="stat-value">{cashflows.length}</span></div>
-          <div className="stat-item"><span className="stat-label">Total Inflows</span><span className="stat-value positive">{formatCurrency(cashflows.reduce((sum, cf) => (cf.type === 'interest' || cf.type === 'maturity' ? sum + cf.amount : sum), 0))}</span></div>
-          <div className="stat-item"><span className="stat-label">Total Outflows</span><span className="stat-value negative">{formatCurrency(cashflows.reduce((sum, cf) => (cf.type === 'tds' || cf.type === 'reinvestment' ? sum + Math.abs(cf.amount) : sum), 0) * -1)}</span></div>
-          <div className="stat-item"><span className="stat-label">Net Cashflow</span><span className={`stat-value ${cashflows.reduce((s, cf) => s + cf.amount, 0) >= 0 ? 'positive' : 'negative'}`}>{formatCurrency(cashflows.reduce((s, cf) => s + cf.amount, 0))}</span></div>
+          <div className="stat-item"><span className="stat-label">Total Cashflows</span><span className="stat-value">{sortedCashflows.length}</span></div>
+          <div className="stat-item"><span className="stat-label">Total Inflows</span><span className="stat-value positive">{formatCurrency(sortedCashflows.reduce((sum, cf) => {
+            const isInflow = cf.type === 'interest_payout' || cf.type === 'accrued_interest' || cf.type === 'maturity_payout' || cf.type === 'interest' || cf.type === 'maturity';
+            return isInflow && cf.amount > 0 ? sum + cf.amount : sum;
+          }, 0))}</span></div>
+          <div className="stat-item"><span className="stat-label">Total Outflows</span><span className="stat-value negative">{formatCurrency(Math.abs(sortedCashflows.reduce((sum, cf) => {
+            const isOutflow = cf.type === 'tds_deduction' || cf.type === 'tds' || cf.type === 'reinvestment';
+            return isOutflow && cf.amount < 0 ? sum + cf.amount : sum;
+          }, 0)))}</span></div>
+          <div className="stat-item"><span className="stat-label">Net Cashflow</span><span className={`stat-value ${sortedCashflows.reduce((s, cf) => s + cf.amount, 0) >= 0 ? 'positive' : 'negative'}`}>{formatCurrency(sortedCashflows.reduce((s, cf) => s + cf.amount, 0))}</span></div>
         </div>
       </div>
     </div>

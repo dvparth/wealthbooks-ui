@@ -89,6 +89,46 @@ export const mockInvestments = [
     expectedMaturityAmount: 400000,
     status: 'active'
   },
+  // FD full reinvestment (created from reinvested cash)
+  {
+    id: 'inv-fd-full-reinv',
+    externalInvestmentId: 'FD_FULL_REINV',
+    name: 'FD created from Full Reinvestment',
+    investmentTypeId: '550e8400-e29b-41d4-a716-446655440001',
+    bankId: 'bank-002',
+    ownerId: 'owner-002',
+    // This investment was funded entirely by a reinvestment from another investment
+    startDate: '2024-03-01',
+    maturityDate: '2025-03-01',
+    principal: 3664.75,
+    interestRate: 6.0,
+    interestCalculationFrequency: 'quarterly',
+    interestPayoutFrequency: 'maturity',
+    expectedMaturityAmount: 3760.00,
+    status: 'active',
+    sourceInvestmentId: 'inv-fd-310',
+    sourceAmount: 3664.75,
+  },
+  // Premature closure example
+  {
+    id: 'inv-closed-premature',
+    externalInvestmentId: 'FD_PREM_CLOSE',
+    name: 'FD - Premature Closure',
+    investmentTypeId: '550e8400-e29b-41d4-a716-446655440001',
+    bankId: 'bank-003',
+    ownerId: 'owner-001',
+    startDate: '2023-06-01',
+    maturityDate: '2025-06-01',
+    principal: 250000,
+    interestRate: 6.5,
+    interestCalculationFrequency: 'quarterly',
+    interestPayoutFrequency: 'maturity',
+    expectedMaturityAmount: null,
+    status: 'closed',
+    closedAt: '2024-09-15',
+    closureAmount: 252500.00,
+    closureReason: 'Premature closure by customer',
+  },
   // FD quarter test
   {
     id: 'inv-fd-quarter-test',
@@ -107,3 +147,8 @@ export const mockInvestments = [
     status: 'active'
   }
 ];
+
+export function addInvestment(investment) {
+  mockInvestments.push(investment)
+}
+

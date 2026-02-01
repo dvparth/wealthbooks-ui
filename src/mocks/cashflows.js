@@ -366,7 +366,8 @@ export const mockCashFlows = [
     financialYear: '2023-24',
     source: 'manual',
     status: 'confirmed',
-    reinvestedInvestmentId: 'inv-fd-st001',
+    sourceInvestmentId: 'inv-fd-310',
+    targetInvestmentId: 'inv-fd-st001',
   },
 
   // FY 2024-25: Q2 (Feb 29 - May 30)
@@ -391,7 +392,8 @@ export const mockCashFlows = [
     financialYear: '2024-25',
     source: 'manual',
     status: 'confirmed',
-    reinvestedInvestmentId: 'inv-fd-st001',
+    sourceInvestmentId: 'inv-fd-310',
+    targetInvestmentId: 'inv-fd-st001',
   },
 
   // FY 2024-25: Q3 (May 30 - Aug 30)
@@ -416,7 +418,8 @@ export const mockCashFlows = [
     financialYear: '2024-25',
     source: 'manual',
     status: 'confirmed',
-    reinvestedInvestmentId: 'inv-fd-st001',
+    sourceInvestmentId: 'inv-fd-310',
+    targetInvestmentId: 'inv-fd-st001',
   },
 
   // FY 2024-25: Q4 (Aug 30 - Nov 30)
@@ -454,4 +457,59 @@ export const mockCashFlows = [
     source: 'system',
     status: 'confirmed',
   },
+  // ===== Additional flow examples =====
+  // Full reinvestment: source pays out, target receives full amount
+  {
+    id: 'cf-full-reinv-source-2024-03-01',
+    investmentId: 'inv-fd-310',
+    date: '2024-03-01',
+    type: 'reinvestment',
+    amount: -3664.75,
+    financialYear: '2023-24',
+    source: 'system',
+    status: 'confirmed',
+    sourceInvestmentId: 'inv-fd-310',
+    targetInvestmentId: 'inv-fd-full-reinv',
+  },
+  {
+    id: 'cf-full-reinv-target-2024-03-01',
+    investmentId: 'inv-fd-full-reinv',
+    date: '2024-03-01',
+    type: 'principal',
+    amount: 3664.75,
+    financialYear: '2023-24',
+    source: 'system',
+    status: 'confirmed',
+    sourceInvestmentId: 'inv-fd-310',
+    targetInvestmentId: 'inv-fd-full-reinv',
+  },
+
+  // Premature closure: funds moved out at closure
+  {
+    id: 'cf-closure-premature-2024-09-15',
+    investmentId: 'inv-closed-premature',
+    date: '2024-09-15',
+    type: 'closure',
+    amount: 252500.00,
+    financialYear: '2024-25',
+    source: 'manual',
+    status: 'confirmed',
+  },
+
+  // Unallocated cash: funds moved out to unallocated pool (not tied to an investment)
+  {
+    id: 'cf-unallocated-2024-10-01',
+    investmentId: null,
+    date: '2024-10-01',
+    type: 'unallocated',
+    amount: 5000.00,
+    financialYear: '2024-25',
+    source: 'system',
+    status: 'confirmed',
+  },
 ];
+
+export function addCashflow(cashflow) {
+  mockCashFlows.push(cashflow)
+}
+

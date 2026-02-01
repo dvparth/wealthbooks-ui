@@ -39,6 +39,7 @@ export const INTEREST_FREQUENCIES = {
  * Investment status
  */
 export const INVESTMENT_STATUS = {
+  DRAFT: 'draft',
   ACTIVE: 'active',
   CLOSED: 'closed',
 };
@@ -48,11 +49,18 @@ export const INVESTMENT_STATUS = {
  */
 export const CASHFLOW_TYPES = {
   PRINCIPAL: 'principal',
+  INTEREST_PAYOUT: 'interest_payout',
+  ACCRUED_INTEREST: 'accrued_interest',
+  MATURITY_PAYOUT: 'maturity_payout',
+  TDS_DEDUCTION: 'tds_deduction',
+  // Legacy types (for backwards compatibility)
   INTEREST: 'interest',
   TDS: 'tds',
   MATURITY: 'maturity',
   REINVESTMENT: 'reinvestment',
   ADJUSTMENT: 'adjustment',
+  UNALLOCATED: 'unallocated',
+  CLOSURE: 'closure',
 };
 
 /**

@@ -1,0 +1,36 @@
+.create-investment-root {
+  max-width: 920px;
+  margin: 24px auto;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+.ci-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+.ci-step {
+  color: #6b7280;
+}
+.ci-main {
+  display: grid;
+  gap: 16px;
+}
+.ci-section {
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.radio-row label { margin-right: 16px; }
+.existing-block { margin-top: 12px; }
+.field-row { display:flex; flex-direction: column; gap:6px; margin:8px 0; max-width:480px }
+.field-row input[type="text"], .field-row input[type="number"], .field-row select, .field-row input[type="date"] { padding:8px; border:1px solid #d1d5db; border-radius:4px }
+.field-row select:disabled { background:#f3f4f6; color:#6b7280; cursor:not-allowed }
+.ci-locked { color:#6b7280; font-size:0.85em; font-style:italic }
+.ci-footer { display:flex; justify-content:flex-end; gap:12px; margin-top:16px }
+.btn-primary { background:#2563eb; color:white; padding:8px 14px; border-radius:6px; border:none }
+.btn-primary:disabled { opacity:0.5 }
+.btn-secondary { background:transparent; border:1px solid #d1d5db; padding:8px 14px; border-radius:6px }
+.ci-error { color:#b91c1c; margin-top:8px }

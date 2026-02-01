@@ -106,6 +106,9 @@ export default function InvestmentsList({ onSelectInvestment }) {
       {/* Header Section */}
       <header className="investments-header">
         <h1>My Investments</h1>
+        <div>
+          <button onClick={() => { window.history.pushState({}, '', '/investments/new'); window.dispatchEvent(new PopStateEvent('popstate')) }} className="btn-primary">Create Investment</button>
+        </div>
         <div className="investments-summary">
           <div className="summary-item">
             <span className="summary-label">Active</span>
