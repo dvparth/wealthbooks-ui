@@ -44,6 +44,8 @@ export const createInvestment = (data) => {
     interestRate: data.interestRate,
     interestCalculationFrequency: data.interestCalculationFrequency,
     interestPayoutFrequency: data.interestPayoutFrequency,
+    calculationMode: data.calculationMode || 'fractional',
+    compounding: data.compounding || 'no',
     // Status can be DRAFT | ACTIVE | CLOSED
     status: data.status || INVESTMENT_STATUS.ACTIVE,
     // Closure metadata (populated when status === CLOSED)

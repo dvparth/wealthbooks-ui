@@ -87,7 +87,7 @@ function daysBetweenExclusive(startDateLike, endDateLike) {
    Core calculation function
    ------------------------- */
 
-export function calculateFdMaturity({ principal, annualRatePercent, startDate, maturityDate, durationDays }) {
+export function calculateFdMaturity({ principal, annualRatePercent, startDate, maturityDate, durationDays, compoundingFrequencyPerYear = 4 }) {
   // Validate inputs
   if (typeof principal !== 'number' || !isFinite(principal) || principal <= 0) {
     throw new TypeError('principal must be a positive number');
@@ -115,7 +115,7 @@ export function calculateFdMaturity({ principal, annualRatePercent, startDate, m
 
   // Parameters
   const daysInYear = 365; // ACT/365
-  const compoundingFrequencyPerYear = 4; // Quarterly
+  // Use provided compounding frequency (quarters/months/annual). Default is quarterly (4).
   const payoutAtMaturity = true; // cumulative FD
 
   // Edge case: zero duration
@@ -147,7 +147,7 @@ export function calculateFdMaturity({ principal, annualRatePercent, startDate, m
   // Step 1: period rate
   const periodRate = (annualRatePercent / 100) / compoundingFrequencyPerYear;
 
-  // Step 2: fractional periods
+  // Step 2: fractional periods based on chosen compounding frequency
   const fractionalPeriods = (computedDurationDays / daysInYear) * compoundingFrequencyPerYear;
 
   // Step 3: growth factor
@@ -180,7 +180,7 @@ export function calculateFdMaturity({ principal, annualRatePercent, startDate, m
     interestRaw,
     roundingMethod: 'bank-style round half away from zero (2 decimals)',
     note:
-      'Using ACT/365 and fractional quarterly compounding: growthFactor = (1 + periodRate) ^ fractionalPeriods computed via ln/exp. ' +
+      'Using ACT/365 and fractional compounding at the selected frequency: growthFactor = (1 + periodRate) ^ fractionalPeriods computed via ln/exp. ' +
       'Only final monetary outputs are rounded.'
   };
 
@@ -225,7 +225,7 @@ export function calculateFdMaturity({ principal, annualRatePercent, startDate, m
  * @param {number} [params.durationDays] - Optional: pre-computed duration in days
  * @returns {Object} { maturityAmount, interestEarned, explanation }
  */
-export function calculateFdMaturityBankStyle({ principal, annualRatePercent, startDate, maturityDate, durationDays }) {
+export function calculateFdMaturityBankStyle({ principal, annualRatePercent, startDate, maturityDate, durationDays, compoundingFrequencyPerYear = 4 }) {
   if (typeof principal !== 'number' || !isFinite(principal) || principal <= 0) {
     throw new TypeError('principal must be a positive number');
   }
@@ -246,12 +246,12 @@ export function calculateFdMaturityBankStyle({ principal, annualRatePercent, sta
   }
 
   const daysInYear = 365;
-  const freq = 4; // quarterly
+  const freq = compoundingFrequencyPerYear || 4;
   const periodRate = (annualRatePercent / 100) / freq;
-  const approxQuarterDays = daysInYear / freq; // 91.25
+  const approxPeriodDays = daysInYear / freq;
 
   // Step 1: Count full quarters (using approximate quarter length)
-  const fullQuarters = Math.floor(computedDurationDays / approxQuarterDays);
+  const fullQuarters = Math.floor(computedDurationDays / approxPeriodDays);
 
   // Step 2: Apply quarterly compounding with rounding after each quarter
   let amount = principal;
@@ -260,7 +260,7 @@ export function calculateFdMaturityBankStyle({ principal, annualRatePercent, sta
   }
 
   // Step 3: Calculate remainder days and apply simple interest
-  const remainderDays = computedDurationDays - Math.floor(fullQuarters * approxQuarterDays);
+  const remainderDays = computedDurationDays - Math.floor(fullQuarters * approxPeriodDays);
   const remainderInterest = amount * (annualRatePercent / 100) * (remainderDays / daysInYear);
   amount = amount + remainderInterest;
 
@@ -275,14 +275,16 @@ export function calculateFdMaturityBankStyle({ principal, annualRatePercent, sta
     daysInYear,
     compoundingFrequencyPerYear: freq,
     periodRate,
-    approxQuarterDays,
+    approxPeriodDays,
+    // Backwards-compatible alias used by tests/logs
+    approxQuarterDays: approxPeriodDays,
     fullQuarters,
     remainderDays,
-    roundingMethod: 'bank-style: round after each quarter + final round',
+    roundingMethod: 'bank-style: round after each full period + final round',
     maturityAmountRaw: amount,
     interestRaw: amount - principal,
     note:
-      'Quarterly compounding with per-quarter rounding (traditional bank method) + simple interest on remainder days.'
+      'Compounding with per-period rounding (traditional bank method) + simple interest on remainder days.'
   };
 
   return {

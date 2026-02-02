@@ -57,6 +57,28 @@ export default function CreateInvestment({ onCancel, onNext }) {
     }
   }, [])
 
+  // Auto-persist step1 to sessionStorage whenever any key field changes
+  useEffect(() => {
+    try {
+      const payload = {
+        source,
+        sourceInvestmentId: source === 'existing' ? sourceInvestmentId : null,
+        reinvestAmount: source === 'existing' ? (reinvestAmount ? parseFloat(reinvestAmount) : null) : null,
+        investmentTypeId,
+        externalId,
+        ownerId,
+        bankId,
+        branch,
+        startDate,
+        maturityDate,
+      }
+      sessionStorage.setItem('wb:createInvestment:step1', JSON.stringify(payload))
+      console.debug('[CreateInvestment] Auto-persisted step1 payload', payload)
+    } catch (e) {
+      console.warn('[CreateInvestment] Could not auto-persist step1 payload', e)
+    }
+  }, [source, sourceInvestmentId, reinvestAmount, investmentTypeId, externalId, ownerId, bankId, branch, startDate, maturityDate])
+
   // Validation
   const reinvestAmountNum = parseFloat(reinvestAmount || '0')
   const reinvestValid = source === 'fresh' || (reinvestAmountNum > 0 && reinvestAmountNum <= availableAmount)
