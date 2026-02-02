@@ -36,6 +36,7 @@ const getCashflowTypeLabel = (type) => {
     'interest_payout': 'Interest Payout',
     'interest': 'Interest', // Legacy
     'accrued_interest': 'Accrued Interest',
+    'interest_accrual': 'Accrued Interest',
     'maturity_payout': 'Maturity Payout',
     'tds_deduction': 'TDS Deduction',
     'tds': 'TDS', // Legacy
@@ -143,8 +144,8 @@ export default function InvestmentDetail({ investmentId, onBack }) {
       
 
       cashflows.forEach((cf) => {
-        // Sum interest (both interest_payout and accrued_interest types)
-        if (cf.type === 'interest_payout' || cf.type === 'accrued_interest' || cf.type === 'interest') {
+          // Sum interest (include interest_payout, accrued_interest, and interest_accrual types)
+          if (cf.type === 'interest_payout' || cf.type === 'accrued_interest' || cf.type === 'interest' || cf.type === 'interest_accrual') {
           interestEarned += cf.amount;
         }
         // Sum TDS (tds_deduction, tds types)
@@ -162,6 +163,111 @@ export default function InvestmentDetail({ investmentId, onBack }) {
     
     return summaries;
   }, [groupedByFY]);
+
+  // Diagnostics: copy persisted-investment diagnostics + preview overlay
+  const showDiagnosticsPreview = (text, title = 'Diagnostics') => {
+    try {
+      const existing = document.getElementById('wb-diagnostics-overlay')
+      if (existing) existing.remove()
+      const overlay = document.createElement('div')
+      overlay.id = 'wb-diagnostics-overlay'
+      overlay.style.position = 'fixed'
+      overlay.style.left = '0'
+      overlay.style.top = '0'
+      overlay.style.width = '100%'
+      overlay.style.height = '100%'
+      overlay.style.background = 'rgba(0,0,0,0.6)'
+      overlay.style.zIndex = 9999
+      overlay.style.display = 'flex'
+      overlay.style.alignItems = 'center'
+      overlay.style.justifyContent = 'center'
+
+      const panel = document.createElement('div')
+      panel.style.width = 'min(980px, 96%)'
+      panel.style.maxHeight = '86%'
+      panel.style.background = '#fff'
+      panel.style.borderRadius = '8px'
+      panel.style.padding = '16px'
+      panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)'
+      panel.style.overflow = 'auto'
+      panel.style.fontFamily = 'monospace'
+      panel.style.fontSize = '0.9em'
+
+      const header = document.createElement('div')
+      header.style.display = 'flex'
+      header.style.justifyContent = 'space-between'
+      header.style.alignItems = 'center'
+      header.style.marginBottom = '8px'
+
+      const h = document.createElement('strong')
+      h.textContent = title
+      header.appendChild(h)
+
+      const closeBtn = document.createElement('button')
+      closeBtn.textContent = 'Close'
+      closeBtn.style.padding = '6px 10px'
+      closeBtn.style.border = 'none'
+      closeBtn.style.background = '#111827'
+      closeBtn.style.color = '#fff'
+      closeBtn.style.borderRadius = '4px'
+      closeBtn.style.cursor = 'pointer'
+      closeBtn.onclick = () => overlay.remove()
+      header.appendChild(closeBtn)
+
+      const pre = document.createElement('pre')
+      pre.textContent = text
+      pre.style.whiteSpace = 'pre-wrap'
+      pre.style.wordBreak = 'break-word'
+      pre.style.margin = '0'
+
+      panel.appendChild(header)
+      panel.appendChild(pre)
+      overlay.appendChild(panel)
+      document.body.appendChild(overlay)
+    } catch (e) {
+      console.error('[InvestmentDetail] showDiagnosticsPreview error', e)
+    }
+  }
+
+  const handleCopyDiagnostics = async () => {
+    try {
+      // Build diagnostics text for persisted investment
+      const investmentInfo = `Investment: ${investment.name || investment.id}\nID: ${investment.externalInvestmentId || investment.id}\nOwner: ${owner?.name || '—'}\nBank: ${bank?.name || '—'}\nPrincipal: ${investment.principal || 0}\nRate: ${investment.interestRate || 0}%\nStart: ${investment.startDate || '—'}\nMaturity: ${investment.maturityDate || '—'}\n`;
+
+      const totalInterest = Object.values(fySummaries).reduce((s, f) => s + (f.interestEarned || 0), 0)
+      const totalTds = Object.values(fySummaries).reduce((s, f) => s + (f.tdsDeducted || 0), 0)
+
+      let detailed = ''
+      Object.entries(groupedByFY).forEach(([fy, cfs]) => {
+        detailed += `\n${fy} - ${cfs.length} cashflows\n`
+        cfs.forEach(cf => {
+          detailed += `  ${cf.date} | ${cf.type} | ${cf.amount} | ${cf.status} | ${cf.source}\\n`
+        })
+      })
+
+      const diagnostics = `=== INVESTMENT DIAGNOSTICS ===\n\n${investmentInfo}\nTotal Interest (FY summaries): ${totalInterest}\nTotal TDS (FY summaries): ${totalTds}\nCashflow Count: ${sortedCashflows.length}\n${detailed}`
+
+      // Copy to clipboard
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(diagnostics)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = diagnostics
+        ta.style.position = 'fixed'
+        ta.style.left = '-9999px'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+
+      // Show preview overlay with the exact text copied
+      showDiagnosticsPreview(diagnostics, 'Investment Diagnostics — Copied to clipboard')
+    } catch (err) {
+      console.error('[InvestmentDetail] Copy diagnostics error', err)
+      alert('Failed to copy diagnostics. ' + (err?.message || ''))
+    }
+  }
 
   const [expandedFYs, setExpandedFYs] = useState(() => {
     const today = new Date();
@@ -189,9 +295,18 @@ export default function InvestmentDetail({ investmentId, onBack }) {
   return (
     <div className="investment-detail-container">
       <div className="detail-header">
-        <button className="back-button" onClick={() => onBack && onBack()} aria-label="Back to investments">
-          ← Back
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button className="back-button" onClick={() => onBack && onBack()} aria-label="Back to investments">
+            ← Back
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => handleCopyDiagnostics()}
+            style={{ padding: '6px 10px', borderRadius: '6px', background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer' }}
+          >
+            📋 Copy diagnostics
+          </button>
+        </div>
       </div>
       <div className="investment-summary-card" role="region" aria-label="Investment summary">
         <div className="summary-grid">
@@ -339,7 +454,8 @@ export default function InvestmentDetail({ investmentId, onBack }) {
         <div className="summary-stats">
           <div className="stat-item"><span className="stat-label">Total Cashflows</span><span className="stat-value">{sortedCashflows.length}</span></div>
           <div className="stat-item"><span className="stat-label">Total Inflows</span><span className="stat-value positive">{formatCurrency(sortedCashflows.reduce((sum, cf) => {
-            const isInflow = cf.type === 'interest_payout' || cf.type === 'accrued_interest' || cf.type === 'maturity_payout' || cf.type === 'interest' || cf.type === 'maturity';
+            // Include 'interest_accrual' as inflow for summary totals
+            const isInflow = cf.type === 'interest_payout' || cf.type === 'accrued_interest' || cf.type === 'interest_accrual' || cf.type === 'maturity_payout' || cf.type === 'interest' || cf.type === 'maturity';
             return isInflow && cf.amount > 0 ? sum + cf.amount : sum;
           }, 0))}</span></div>
           <div className="stat-item"><span className="stat-label">Total Outflows</span><span className="stat-value negative">{formatCurrency(Math.abs(sortedCashflows.reduce((sum, cf) => {

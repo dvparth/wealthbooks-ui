@@ -1,20 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useCreateInvestmentWizard } from '../contexts/CreateInvestmentContext.jsx'
+import { withCreateInvestmentStep } from '../hoc/withCreateInvestmentStep.jsx'
 import { mockInvestmentTypes } from '../mocks/investmentTypes.js'
 import '../styles/CreateInvestment.css'
 
-export default function CreateInvestmentStep2({ onBack, onNext }) {
-  const [step1, setStep1] = useState(null)
-  const [step1Loaded, setStep1Loaded] = useState(false)
+function CreateInvestmentStep2({ onBack, onNext }) {
+  const { step1, step2, updateStep2, goToNextStep, goToPreviousStep } = useCreateInvestmentWizard()
 
-  // Amounts
-  const [principal, setPrincipal] = useState(() => {
-    if (!step1) return ''
-    return step1.reinvestAmount != null ? String(step1.reinvestAmount) : ''
-  })
+  // Amounts — initialize from context, maintain local state for form
+  const [principal, setPrincipal] = useState('')
   const [rate, setRate] = useState('')
 
-  // Interest Rules (editable, with defaults and locks per type)
-  // Initialize with empty strings, then apply persisted values in useEffect before type defaults
+  // Interest Rules
   const [calcFreq, setCalcFreq] = useState('')
   const [payoutFreq, setPayoutFreq] = useState('')
   const [compounding, setCompounding] = useState('')
@@ -24,73 +21,24 @@ export default function CreateInvestmentStep2({ onBack, onNext }) {
   const [tdsApplicable, setTdsApplicable] = useState(false)
   const [tdsRate, setTdsRate] = useState(10)
 
+  // Sync context step2 data to local state on mount
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem('wb:createInvestment:step1')
-      setStep1(raw ? JSON.parse(raw) : null)
-      console.debug('[Step2] Loaded step1 from sessionStorage:', raw ? JSON.parse(raw) : null)
-    } catch (e) {
-      console.warn('[Step2] Error loading step1:', e)
-      setStep1(null)
-    } finally {
-      setStep1Loaded(true)
+    if (step2) {
+      if (step2.principal != null) setPrincipal(String(step2.principal))
+      if (step2.rate != null) setRate(String(step2.rate))
+      if (step2.calcFreq) setCalcFreq(step2.calcFreq)
+      if (step2.payoutFreq) setPayoutFreq(step2.payoutFreq)
+      if (step2.compounding) setCompounding(step2.compounding)
+      if (step2.calculationMode) setCalculationMode(step2.calculationMode)
+      if (step2.tdsApplicable != null) setTdsApplicable(step2.tdsApplicable)
+      if (step2.tdsRate != null) setTdsRate(step2.tdsRate)
+    } else if (step1?.reinvestAmount != null) {
+      // Initialize principal from step1 if no step2 data yet
+      setPrincipal(String(step1.reinvestAmount))
     }
-  }, [])
+  }, [step2, step1?.reinvestAmount])
 
-  // Persist step2 inputs on every change so other steps always read the latest values
-  useEffect(() => {
-    try {
-      const payload = {
-        principal: principal ? parseFloat(principal) : null,
-        rate: rate ? parseFloat(rate) : null,
-        calcFreq,
-        payoutFreq,
-        compounding,
-        calculationMode,
-        // also keep legacy key for compatibility
-        calcMode: calculationMode,
-        tdsApplicable,
-        tdsRate: tdsApplicable ? tdsRate : null,
-      }
-      sessionStorage.setItem('wb:createInvestment:step2', JSON.stringify(payload))
-      console.debug('[Step2] Auto-persisted step2 payload', payload)
-    } catch (e) {
-      console.warn('[Step2] Could not auto-persist step2 payload', e)
-    }
-  }, [principal, rate, calcFreq, payoutFreq, compounding, calculationMode, tdsApplicable, tdsRate])
-
-  // Also load persisted step2 inputs so navigating Back restores the form
-  useEffect(() => {
-    try {
-      const raw2 = sessionStorage.getItem('wb:createInvestment:step2')
-      if (raw2) {
-        const payload = JSON.parse(raw2)
-        console.debug('[Step2] Loaded persisted step2 payload:', payload)
-        if (payload.principal != null) setPrincipal(String(payload.principal))
-        if (payload.rate != null) setRate(String(payload.rate))
-        if (payload.calcFreq) setCalcFreq(payload.calcFreq)
-        if (payload.payoutFreq) setPayoutFreq(payload.payoutFreq)
-        if (payload.compounding) setCompounding(payload.compounding)
-        // Support both new `calculationMode` and legacy `calcMode` keys
-        if (payload.calculationMode != null) setCalculationMode(payload.calculationMode)
-        else if (payload.calcMode != null) setCalculationMode(payload.calcMode)
-        if (payload.tdsApplicable != null) setTdsApplicable(Boolean(payload.tdsApplicable))
-        if (payload.tdsRate != null) setTdsRate(payload.tdsRate)
-      }
-    } catch (e) {
-      console.warn('[Step2] Error loading step2 from sessionStorage:', e)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (step1Loaded && !step1) {
-      // step1 data not found after load attempt — navigate back
-      console.warn('[Step2] No step1 data found, calling onBack')
-      onBack && onBack()
-    }
-  }, [step1Loaded, step1, onBack])
-
-  const type = useMemo(() => mockInvestmentTypes.find((t) => t.id === step1?.investmentTypeId), [step1])
+  const type = useMemo(() => mockInvestmentTypes.find((t) => t.id === step1?.investmentTypeId), [step1?.investmentTypeId])
 
   // Determine interest rules defaults and locks based on investment type
   const typeDefaults = useMemo(() => {
@@ -108,10 +56,10 @@ export default function CreateInvestmentStep2({ onBack, onNext }) {
       return { calcFreq: '', payoutFreq: '', compounding: '', calcMode: 'fractional', locked: false }
   }, [type])
 
-  // Apply type defaults AFTER persisted values are loaded (via separate effect)
+  // Apply type defaults AFTER any persisted values are loaded
   // This ensures persisted values take precedence
   useEffect(() => {
-    if (type && step1Loaded) {
+    if (type && step1) {
       // Only apply type defaults when the current field is empty/unset.
       // This prevents overwriting persisted values when navigating Back.
       setCalcFreq((cur) => cur || typeDefaults.calcFreq)
@@ -119,7 +67,7 @@ export default function CreateInvestmentStep2({ onBack, onNext }) {
       setCompounding((cur) => cur || typeDefaults.compounding)
       setCalculationMode((cur) => cur || (typeDefaults.calcMode || 'fractional'))
     }
-  }, [type?.id, step1Loaded, typeDefaults])
+  }, [type?.id, typeDefaults])
 
   // Validation
   const principalNum = parseFloat(principal || '0')
@@ -142,33 +90,28 @@ export default function CreateInvestmentStep2({ onBack, onNext }) {
   const formValid = amountValid && rateValid && tdsValid && interestRulesValid
 
   const handleBack = () => {
-    onBack && onBack()
+    goToPreviousStep()
+    onBack?.()
   }
 
   const handleNext = () => {
     if (!formValid) return
-    // calculationMode must always come from user form state, never from defaults
-    const finalCalculationMode = calculationMode
-
+    
     const payload = {
       principal: principalNum,
       rate: rateNum,
       calcFreq,
       payoutFreq,
       compounding,
-      calculationMode: finalCalculationMode,
-      // Persist legacy key as well for older code paths
-      calcMode: finalCalculationMode,
+      calculationMode,
+      calcMode: calculationMode, // Legacy key for compatibility
       tdsApplicable,
       tdsRate: tdsApplicable ? tdsRate : null,
     }
-    try {
-      sessionStorage.setItem('wb:createInvestment:step2', JSON.stringify(payload))
-      console.debug('[Step2] Persisted step2 payload', payload)
-    } catch (e) {
-      console.warn('Could not persist step2 payload', e)
-    }
-    onNext && onNext()
+    
+    updateStep2(payload)
+    goToNextStep()
+    onNext?.()
   }
 
   return (
@@ -251,3 +194,5 @@ export default function CreateInvestmentStep2({ onBack, onNext }) {
     </div>
   )
 }
+
+export default withCreateInvestmentStep(CreateInvestmentStep2, 2, { requireStep1: true })

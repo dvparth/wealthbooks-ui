@@ -1,56 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useCreateInvestmentWizard } from '../contexts/CreateInvestmentContext.jsx'
+import { withCreateInvestmentStep } from '../hoc/withCreateInvestmentStep.jsx'
 import { mockInvestmentTypes, mockOwners, mockBanks, mockInvestments, addInvestment, mockCashflows, addCashflow } from '../mocks/index.js'
 import { calculateFdMaturity, calculateFdMaturityBankStyle } from '../utils/calculateFdMaturity.js'
 import { createInvestment } from '../models/Investment.js'
 import { createCashFlow } from '../models/CashFlow.js'
 import '../styles/CreateInvestment.css'
 
-export default function CreateInvestmentStep3({ onBack, onDone }) {
-  const [step1, setStep1] = useState(null)
-  const [step2, setStep2] = useState(null)
-  const [step1Loaded, setStep1Loaded] = useState(false)
-  const [step2Loaded, setStep2Loaded] = useState(false)
+function CreateInvestmentStep3({ onBack, onDone }) {
+  const { step1, step2, startSubmitting, completeSubmission, setError, goToPreviousStep, resetWizard } = useCreateInvestmentWizard()
+  
   const [saving, setSaving] = useState(false)
   const [actualMaturityAmount, setActualMaturityAmount] = useState('')
   const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false)
 
   // Helper to identify any interest-like cashflow types
   const isInterestCf = (cf) => cf && (cf.type === 'interest' || cf.type === 'accrued_interest' || cf.type === 'interest_accrual' || cf.type === 'maturity_payout' || cf.type === 'interest_payout')
-
-  // Load step 1 and 2 data from sessionStorage
-  useEffect(() => {
-    try {
-      const raw1 = sessionStorage.getItem('wb:createInvestment:step1')
-      setStep1(raw1 ? JSON.parse(raw1) : null)
-      console.debug('[Step3] Loaded step1 from sessionStorage:', raw1 ? JSON.parse(raw1) : null)
-    } catch (e) {
-      console.warn('[Step3] Error loading step1:', e)
-      setStep1(null)
-    } finally {
-      setStep1Loaded(true)
-    }
-  }, [])
-
-  useEffect(() => {
-    try {
-      const raw2 = sessionStorage.getItem('wb:createInvestment:step2')
-      setStep2(raw2 ? JSON.parse(raw2) : null)
-      console.debug('[Step3] Loaded step2 from sessionStorage:', raw2 ? JSON.parse(raw2) : null)
-    } catch (e) {
-      console.warn('[Step3] Error loading step2:', e)
-      setStep2(null)
-    } finally {
-      setStep2Loaded(true)
-    }
-  }, [])
-
-  // Validate both steps loaded and have data
-  useEffect(() => {
-    if (step1Loaded && step2Loaded && (!step1 || !step2)) {
-      console.warn('[Step3] Missing step1 or step2 data, calling onBack')
-      onBack && onBack()
-    }
-  }, [step1Loaded, step2Loaded, step1, step2, onBack])
 
   // Resolve lookup references
   const investmentType = useMemo(() => {
@@ -349,20 +314,28 @@ export default function CreateInvestmentStep3({ onBack, onDone }) {
       const periodEnd = fyEnd < maturityDateObj ? fyEnd : maturityDateObj
 
       if (periodStart <= periodEnd) {
-        // Calculate accumulated amount at periodEnd using actual compounding formula
-        const daysFromStart = Math.floor((periodEnd - start) / (1000 * 60 * 60 * 24)) + 1
-        const yearsFromStart = daysFromStart / 365.25
-        
+        // Calculate accumulated amount at periodEnd using the same conventions as the FD calculator
+        // Use exclusive day difference (no +1) and ACT/365 year count to match calculateFdMaturity
+        const MS_PER_DAY = 1000 * 60 * 60 * 24
+        const daysFromStart = Math.floor((periodEnd - start) / MS_PER_DAY)
+        const daysInYear = 365
+
+        // Determine compounding frequency for period calculations
+        const compoundingFrequencyPerYear = step2.calcFreq === 'quarterly' ? 4 : step2.calcFreq === 'monthly' ? 12 : 1
+
         let accumulatedAtFYEnd
         if (step2.compounding === 'no') {
-          // Simple interest: only depends on days from start
-          accumulatedAtFYEnd = principal + (principal * interestRate * yearsFromStart) / 100
+          // Simple interest: principal + principal * rate * (days / 365)
+          accumulatedAtFYEnd = principal + (principal * interestRate * (daysFromStart / daysInYear)) / 100
         } else {
-          // Compound interest: use the actual compounding formula
-          const periodsFromStart = yearsFromStart * compoundingFrequencyPerYear
-          accumulatedAtFYEnd = principal * Math.pow(1 + (interestRate / 100 / compoundingFrequencyPerYear), periodsFromStart)
+          // Fractional compounding using ln/exp to match calculateFdMaturity
+          const periodRate = (interestRate / 100) / compoundingFrequencyPerYear
+          const fractionalPeriods = (daysFromStart / daysInYear) * compoundingFrequencyPerYear
+          const lnFactor = fractionalPeriods * Math.log(1 + periodRate)
+          const growthFactor = Math.exp(lnFactor)
+          accumulatedAtFYEnd = principal * growthFactor
         }
-        
+
         const accruedForFY = accumulatedAtFYEnd - previousAccumulated
         accrualByFY[fyLabel] = {
           accruedAmount: accruedForFY,
@@ -585,6 +558,10 @@ export default function CreateInvestmentStep3({ onBack, onDone }) {
     }
     // For future investments, use original calculation
     if (!step2?.tdsApplicable || !step2?.tdsRate) return 0
+    // Use per-accrual TDS rounding to match generated TDS cashflows (sum of per-accrual rounded amounts)
+    const perAccrualSum = previewTdsCashflows.reduce((sum, cf) => sum + Math.abs(cf.amount), 0)
+    if (perAccrualSum > 0) return perAccrualSum
+    // Fallback: round on total interest if no per-accrual entries (shouldn't happen when TDS is applicable)
     return Math.round((totalInterest * step2.tdsRate) / 100)
   }, [isMatured, maturedCalculations, totalInterest, step2])
 
@@ -800,7 +777,7 @@ ${detailedCashflowsSection || '  (No accruals to display)'}
 VALIDATION:
   Accrual Count: ${accrualCashflows.length}
   TDS Count: ${previewTdsCashflows.length}
-  TDS-to-Accrual Correspondence: ${accrualCashflows.length === previewTdsCashflows.length ? '✓ Pass (1:1 match)' : `✗ Fail (Mismatch: ${accrualCashflows.length} accruals vs ${previewTdsCashflows.length} TDS)`}
+  TDS-to-Accrual Correspondence: ${step2?.tdsApplicable ? (accrualCashflows.length === previewTdsCashflows.length ? '✓ Pass (1:1 match)' : `✗ Fail (Mismatch: ${accrualCashflows.length} accruals vs ${previewTdsCashflows.length} TDS)`) : 'N/A (TDS not applicable)'}
   Accrual-to-Interest Match: ${(() => {
     const relErr = Math.abs(totalAccrualAmount - totalInterest) / Math.max(totalInterest, 0.01);
     return relErr < 0.01 ? '✓ Pass' : `⚠ Warn (diff: ₹${Math.abs(totalAccrualAmount - totalInterest).toFixed(2)}, relErr: ${(relErr * 100).toFixed(4)}%)`;
@@ -814,14 +791,12 @@ VALIDATION:
     
     try {
       console.log('[Step3] Copy diagnostics - attempting to copy', { diagnosticsLength: fullDiagnostics.length })
-      // Use modern clipboard API if available
+      // Copy to clipboard (modern API preferred)
       if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        console.log('[Step3] Using navigator.clipboard API')
         await navigator.clipboard.writeText(fullDiagnostics)
-        alert('✅ Diagnostics copied to clipboard!')
+        console.log('[Step3] navigator.clipboard.writeText succeeded')
       } else {
-        // Fallback: create a temporary textarea and copy via execCommand
-        console.log('[Step3] Using execCommand fallback method')
+        // Fallback: temporary textarea + execCommand
         const textArea = document.createElement('textarea')
         textArea.value = fullDiagnostics
         textArea.style.position = 'fixed'
@@ -829,20 +804,83 @@ VALIDATION:
         textArea.style.top = '-9999px'
         document.body.appendChild(textArea)
         textArea.select()
-        const success = document.execCommand('copy')
+        document.execCommand('copy')
         document.body.removeChild(textArea)
-        
-        if (success) {
-          console.log('[Step3] execCommand copy successful')
-          alert('✅ Diagnostics copied to clipboard!')
-        } else {
-          console.log('[Step3] execCommand copy failed')
-          alert('❌ Failed to copy diagnostics. Please try again.')
-        }
+        console.log('[Step3] execCommand fallback used for copy')
       }
+
+      // Show a preview overlay containing the copied diagnostics so the user can verify what was copied
+      showDiagnosticsPreview(fullDiagnostics, 'Create Investment Diagnostics — Copied to clipboard')
     } catch (err) {
       console.error('[Step3] Copy diagnostics error:', err, { message: err?.message, stack: err?.stack })
       alert('❌ Failed to copy diagnostics. Error: ' + (err?.message || 'Unknown error'))
+    }
+  }
+
+  // Lightweight diagnostics preview overlay (appends a transient DOM node)
+  const showDiagnosticsPreview = (text, title = 'Diagnostics') => {
+    try {
+      // Avoid multiple overlays
+      const existing = document.getElementById('wb-diagnostics-overlay')
+      if (existing) existing.remove()
+
+      const overlay = document.createElement('div')
+      overlay.id = 'wb-diagnostics-overlay'
+      overlay.style.position = 'fixed'
+      overlay.style.left = '0'
+      overlay.style.top = '0'
+      overlay.style.width = '100%'
+      overlay.style.height = '100%'
+      overlay.style.background = 'rgba(0,0,0,0.6)'
+      overlay.style.zIndex = 9999
+      overlay.style.display = 'flex'
+      overlay.style.alignItems = 'center'
+      overlay.style.justifyContent = 'center'
+
+      const panel = document.createElement('div')
+      panel.style.width = 'min(980px, 96%)'
+      panel.style.maxHeight = '86%'
+      panel.style.background = '#fff'
+      panel.style.borderRadius = '8px'
+      panel.style.padding = '16px'
+      panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)'
+      panel.style.overflow = 'auto'
+      panel.style.fontFamily = 'monospace'
+      panel.style.fontSize = '0.9em'
+
+      const header = document.createElement('div')
+      header.style.display = 'flex'
+      header.style.justifyContent = 'space-between'
+      header.style.alignItems = 'center'
+      header.style.marginBottom = '8px'
+
+      const h = document.createElement('strong')
+      h.textContent = title
+      header.appendChild(h)
+
+      const closeBtn = document.createElement('button')
+      closeBtn.textContent = 'Close'
+      closeBtn.style.padding = '6px 10px'
+      closeBtn.style.border = 'none'
+      closeBtn.style.background = '#111827'
+      closeBtn.style.color = '#fff'
+      closeBtn.style.borderRadius = '4px'
+      closeBtn.style.cursor = 'pointer'
+      closeBtn.onclick = () => overlay.remove()
+      header.appendChild(closeBtn)
+
+      const pre = document.createElement('pre')
+      pre.textContent = text
+      pre.style.whiteSpace = 'pre-wrap'
+      pre.style.wordBreak = 'break-word'
+      pre.style.margin = '0'
+
+      panel.appendChild(header)
+      panel.appendChild(pre)
+      overlay.appendChild(panel)
+      document.body.appendChild(overlay)
+    } catch (e) {
+      console.error('[Step3] showDiagnosticsPreview error', e)
     }
   }
 
@@ -853,6 +891,8 @@ VALIDATION:
     }
 
     setSaving(true)
+    startSubmitting()
+    
     try {
       // Create investment using factory
       const newInvestment = createInvestment({
@@ -935,18 +975,9 @@ VALIDATION:
         console.debug('[Step3] Created TDS_DEDUCTION cashflows tied to interest cashflows')
       }
 
-      // Clear wizard state
-      sessionStorage.removeItem('wb:createInvestment:step1')
-      sessionStorage.removeItem('wb:createInvestment:step2')
-
-      // Navigate to detail page
-      if (onDone && typeof onDone === 'function') {
-        onDone(newInvestment.id)
-      }
-
-      // Clear wizard state
-      sessionStorage.removeItem('wb:createInvestment:step1')
-      sessionStorage.removeItem('wb:createInvestment:step2')
+      // Complete submission and reset wizard state
+      completeSubmission()
+      resetWizard()
 
       // Navigate to detail page
       if (onDone && typeof onDone === 'function') {
@@ -954,12 +985,13 @@ VALIDATION:
       }
     } catch (e) {
       console.error('[Step3] Error saving investment:', e)
+      setError(e.message || 'Failed to save investment')
     } finally {
       setSaving(false)
     }
   }
 
-  if (!step1Loaded || !step2Loaded || !step1 || !step2 || !investmentType) {
+  if (!step1 || !step2 || !investmentType) {
     return <div className="create-investment-root">Loading...</div>
   }
 
@@ -1318,7 +1350,7 @@ TDS Deduction: {tdsAmount} [{matchStatus}]
       </main>
 
       <footer className="ci-footer">
-        <button className="btn-secondary" onClick={onBack} disabled={saving}>
+        <button className="btn-secondary" onClick={() => { onBack?.(); }} disabled={saving}>
           Back
         </button>
         <button className="btn-primary" onClick={handleConfirmAndSave} disabled={saving}>
@@ -1328,6 +1360,8 @@ TDS Deduction: {tdsAmount} [{matchStatus}]
     </div>
   )
 }
+
+export default withCreateInvestmentStep(CreateInvestmentStep3, 3, { requireStep1: true, requireStep2: true })
 
 
 

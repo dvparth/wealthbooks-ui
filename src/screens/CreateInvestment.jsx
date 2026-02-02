@@ -1,94 +1,70 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useCreateInvestmentWizard } from '../contexts/CreateInvestmentContext'
+import { withCreateInvestmentStep } from '../hoc/withCreateInvestmentStep'
 import { mockInvestments } from '../mocks/investments.js'
 import { mockOwners } from '../mocks/owners.js'
 import { mockBanks } from '../mocks/banks.js'
 import { mockInvestmentTypes } from '../mocks/investmentTypes.js'
 import '../styles/CreateInvestment.css'
 
-export default function CreateInvestment({ onCancel, onNext }) {
+function CreateInvestmentStep1({ onNext, onCancel }) {
+  const { step1, updateStep1, goToNextStep, resetWizard } = useCreateInvestmentWizard()
+
+  // ============ Local State (mirrors context, for form) ============
   const sourceOptions = ['fresh', 'existing']
-  const [source, setSource] = useState('fresh')
+  const [source, setSource] = useState(step1?.source || 'fresh')
 
   const activeInvestments = useMemo(() => mockInvestments.filter((i) => i.status === 'active'), [])
-  const [sourceInvestmentId, setSourceInvestmentId] = useState(activeInvestments[0]?.id || '')
+  const [sourceInvestmentId, setSourceInvestmentId] = useState(step1?.sourceInvestmentId || activeInvestments[0]?.id || '')
   const availableAmount = useMemo(() => {
     const inv = activeInvestments.find((i) => i.id === sourceInvestmentId)
     return inv ? inv.principal : 0
   }, [sourceInvestmentId, activeInvestments])
-  const [reinvestAmount, setReinvestAmount] = useState('')
+  const [reinvestAmount, setReinvestAmount] = useState(step1?.reinvestAmount ? String(step1.reinvestAmount) : '')
 
-  const [investmentTypeId, setInvestmentTypeId] = useState(mockInvestmentTypes[0]?.id || '')
-  const [externalId, setExternalId] = useState('')
-  const [ownerId, setOwnerId] = useState(mockOwners[0]?.id || '')
-  const [bankId, setBankId] = useState(mockBanks[0]?.id || '')
+  const [investmentTypeId, setInvestmentTypeId] = useState(step1?.investmentTypeId || mockInvestmentTypes[0]?.id || '')
+  const [externalId, setExternalId] = useState(step1?.externalId || '')
+  const [ownerId, setOwnerId] = useState(step1?.ownerId || mockOwners[0]?.id || '')
+  const [bankId, setBankId] = useState(step1?.bankId || mockBanks[0]?.id || '')
   const branches = useMemo(() => {
     const b = mockBanks.find((x) => x.id === bankId)
     if (!b) return []
-    // support both `branches` array and legacy single `branch` string in mocks
     if (Array.isArray(b.branches)) return b.branches
     if (typeof b.branch === 'string') return [b.branch]
     return []
   }, [bankId])
-  const [branch, setBranch] = useState('')
+  const [branch, setBranch] = useState(step1?.branch || '')
 
-  const [startDate, setStartDate] = useState('')
-  const [maturityDate, setMaturityDate] = useState('')
+  const [startDate, setStartDate] = useState(step1?.startDate || '')
+  const [maturityDate, setMaturityDate] = useState(step1?.maturityDate || '')
 
-  // Load persisted step1 if returning via Back navigation
+  // ============ Sync local state to context on mount ============
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem('wb:createInvestment:step1')
-      if (raw) {
-        const payload = JSON.parse(raw)
-        console.debug('[CreateInvestment] Restoring persisted step1 payload:', payload)
-        if (payload.source) setSource(payload.source)
-        if (payload.sourceInvestmentId) setSourceInvestmentId(payload.sourceInvestmentId)
-        if (payload.reinvestAmount != null) setReinvestAmount(String(payload.reinvestAmount))
-        if (payload.investmentTypeId) setInvestmentTypeId(payload.investmentTypeId)
-        if (payload.externalId) setExternalId(payload.externalId)
-        if (payload.ownerId) setOwnerId(payload.ownerId)
-        if (payload.bankId) setBankId(payload.bankId)
-        if (payload.branch) setBranch(payload.branch)
-        if (payload.startDate) setStartDate(payload.startDate)
-        if (payload.maturityDate) setMaturityDate(payload.maturityDate)
-      }
-    } catch (e) {
-      console.warn('[CreateInvestment] Error restoring step1 payload:', e)
+    if (step1) {
+      setSource(step1.source || 'fresh')
+      setSourceInvestmentId(step1.sourceInvestmentId || '')
+      setReinvestAmount(step1.reinvestAmount ? String(step1.reinvestAmount) : '')
+      setInvestmentTypeId(step1.investmentTypeId || '')
+      setExternalId(step1.externalId || '')
+      setOwnerId(step1.ownerId || '')
+      setBankId(step1.bankId || '')
+      setBranch(step1.branch || '')
+      setStartDate(step1.startDate || '')
+      setMaturityDate(step1.maturityDate || '')
     }
-  }, [])
+  }, [step1])
 
-  // Auto-persist step1 to sessionStorage whenever any key field changes
-  useEffect(() => {
-    try {
-      const payload = {
-        source,
-        sourceInvestmentId: source === 'existing' ? sourceInvestmentId : null,
-        reinvestAmount: source === 'existing' ? (reinvestAmount ? parseFloat(reinvestAmount) : null) : null,
-        investmentTypeId,
-        externalId,
-        ownerId,
-        bankId,
-        branch,
-        startDate,
-        maturityDate,
-      }
-      sessionStorage.setItem('wb:createInvestment:step1', JSON.stringify(payload))
-      console.debug('[CreateInvestment] Auto-persisted step1 payload', payload)
-    } catch (e) {
-      console.warn('[CreateInvestment] Could not auto-persist step1 payload', e)
-    }
-  }, [source, sourceInvestmentId, reinvestAmount, investmentTypeId, externalId, ownerId, bankId, branch, startDate, maturityDate])
-
-  // Validation
+  // ============ Validation ============
   const reinvestAmountNum = parseFloat(reinvestAmount || '0')
   const reinvestValid = source === 'fresh' || (reinvestAmountNum > 0 && reinvestAmountNum <= availableAmount)
   const datesValid = !startDate || !maturityDate || new Date(maturityDate) > new Date(startDate)
   const formValid = reinvestValid && datesValid && investmentTypeId && ownerId && bankId
 
+  // ============ Handle Next ============
   const handleNext = () => {
     if (!formValid) return
-    console.debug('[CreateInvestment] handleNext triggered')
-    // store local state or pass up — per instructions do not save yet
+    console.debug('[CreateInvestmentStep1] Updating context and moving to next step')
+    
     const payload = {
       source,
       sourceInvestmentId: source === 'existing' ? sourceInvestmentId : null,
@@ -101,20 +77,9 @@ export default function CreateInvestment({ onCancel, onNext }) {
       startDate,
       maturityDate,
     }
-    // persist step1 data in sessionStorage for the wizard
-    try {
-      sessionStorage.setItem('wb:createInvestment:step1', JSON.stringify(payload))
-      console.debug('[CreateInvestment] Persisted step1 payload', payload)
-    } catch (e) {
-      console.warn('Could not persist step1 payload', e)
-    }
-    // Call onNext callback if provided by parent (App.jsx)
-    if (onNext && typeof onNext === 'function') {
-      console.debug('[CreateInvestment] Calling onNext handler')
-      onNext()
-    } else {
-      console.warn('[CreateInvestment] onNext handler not available — parent should provide navigation callback')
-    }
+    
+    updateStep1(payload)
+    onNext?.()
   }
 
   return (
@@ -216,9 +181,12 @@ export default function CreateInvestment({ onCancel, onNext }) {
       </main>
 
       <footer className="ci-footer">
-        <button className="btn-secondary" onClick={onCancel}>Cancel</button>
+        <button className="btn-secondary" onClick={() => { resetWizard(); onCancel?.(); }}>Cancel</button>
         <button className="btn-primary" onClick={handleNext} disabled={!formValid}>Next</button>
       </footer>
     </div>
   )
 }
+
+// Export with HOC protection (Step 1 has no data requirements)
+export default withCreateInvestmentStep(CreateInvestmentStep1, 1, { requireStep1: false })

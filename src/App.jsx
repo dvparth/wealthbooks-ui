@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { useCreateInvestmentWizard } from './contexts/CreateInvestmentContext.jsx'
+import { CreateInvestmentProvider } from './contexts/CreateInvestmentContext.jsx'
 import InvestmentsList from './screens/InvestmentsList'
 import InvestmentDetail from './screens/InvestmentDetail'
 import CreateInvestment from './screens/CreateInvestment'
@@ -6,15 +8,27 @@ import CreateInvestmentStep2 from './screens/CreateInvestmentStep2'
 import CreateInvestmentStep3 from './screens/CreateInvestmentStep3'
 import './App.css'
 
-function App() {
+function AppContent() {
+  const { currentStep, goToStep, resetWizard } = useCreateInvestmentWizard()
+
+  // Local state for non-wizard screens
   const [currentScreen, setCurrentScreen] = useState('list') // 'list' | 'detail' | 'create' | 'create-step2'
   const [selectedInvestmentId, setSelectedInvestmentId] = useState(null)
 
-  // Log screen changes for debugging
+  // Sync wizard step to URL
   useEffect(() => {
-    console.debug('[App] currentScreen changed to:', currentScreen)
-  }, [currentScreen])
+    if (currentScreen === 'create' || currentScreen.startsWith('create-step')) {
+      const stepMap = { 1: 'create', 2: 'create-step2', 3: 'create-step3' }
+      const expectedScreen = stepMap[currentStep] || 'create'
+      if (currentScreen !== expectedScreen) {
+        setCurrentScreen(expectedScreen)
+        const paths = { 1: '/investments/new', 2: '/investments/new/step2', 3: '/investments/new/step3' }
+        window.history.pushState({}, '', paths[currentStep] || '/investments/new')
+      }
+    }
+  }, [currentStep, currentScreen])
 
+  // Update currentScreen from URL path
   useEffect(() => {
     const updateFromPath = () => {
       const path = window.location.pathname
@@ -23,10 +37,13 @@ function App() {
         setCurrentScreen('list')
       } else if (path === '/investments/new') {
         setCurrentScreen('create')
+        goToStep(1)
       } else if (path === '/investments/new/step2') {
         setCurrentScreen('create-step2')
+        goToStep(2)
       } else if (path === '/investments/new/step3') {
         setCurrentScreen('create-step3')
+        goToStep(3)
       } else if (path.startsWith('/investments/')) {
         setCurrentScreen('detail')
       }
@@ -38,7 +55,7 @@ function App() {
     }
     window.addEventListener('popstate', popstateHandler)
     return () => window.removeEventListener('popstate', popstateHandler)
-  }, [])
+  }, [goToStep])
 
   const handleSelectInvestment = (investmentId) => {
     setSelectedInvestmentId(investmentId)
@@ -53,27 +70,29 @@ function App() {
   }
 
   const handleStartCreate = () => {
+    resetWizard() // Clear any previous wizard state
     setCurrentScreen('create')
+    goToStep(1)
     window.history.pushState({}, '', '/investments/new')
-  }
-
-  const handleGotoStep2 = () => {
-    console.debug('[App] handleGotoStep2 called (from onNext)')
-    setCurrentScreen('create-step2')
-    window.history.pushState({}, '', '/investments/new/step2')
-  }
-
-  const handleGotoStep3 = () => {
-    console.debug('[App] handleGotoStep3 called')
-    setCurrentScreen('create-step3')
-    window.history.pushState({}, '', '/investments/new/step3')
   }
 
   const handleSaveInvestmentDone = (investmentId) => {
     console.debug('[App] Investment saved, navigating to detail:', investmentId)
     setSelectedInvestmentId(investmentId)
     setCurrentScreen('detail')
+    resetWizard() // Clear wizard state after successful save
     window.history.pushState({}, '', `/investments/${investmentId}`)
+  }
+
+  const handleCancelWizard = () => {
+    resetWizard()
+    handleBackToList()
+  }
+
+  const creatInvestmentScreens = {
+    'create': <CreateInvestment onCancel={handleCancelWizard} />,
+    'create-step2': <CreateInvestmentStep2 />,
+    'create-step3': <CreateInvestmentStep3 onDone={handleSaveInvestmentDone} />,
   }
 
   return (
@@ -82,31 +101,16 @@ function App() {
       {currentScreen === 'detail' && (
         <InvestmentDetail investmentId={selectedInvestmentId} onBack={handleBackToList} />
       )}
-      {currentScreen === 'create' && <CreateInvestment onCancel={handleBackToList} onNext={handleGotoStep2} />}
-      {currentScreen === 'create-step2' && (
-        <>
-          {console.debug('[App] Rendering CreateInvestmentStep2')}
-          <CreateInvestmentStep2 
-            onBack={() => { 
-              console.debug('[App] Step2 onBack called')
-              setCurrentScreen('create')
-              window.history.pushState({}, '', '/investments/new')
-            }} 
-            onNext={handleGotoStep3} 
-          />
-        </>
-      )}
-      {currentScreen === 'create-step3' && (
-        <CreateInvestmentStep3 
-          onBack={() => { 
-            console.debug('[App] Step3 onBack called')
-            setCurrentScreen('create-step2')
-            window.history.pushState({}, '', '/investments/new/step2')
-          }} 
-          onDone={handleSaveInvestmentDone}
-        />
-      )}
+      {Object.keys(creatInvestmentScreens).includes(currentScreen) && creatInvestmentScreens[currentScreen]}
     </div>
+  )
+}
+
+function App() {
+  return (
+    <CreateInvestmentProvider>
+      <AppContent />
+    </CreateInvestmentProvider>
   )
 }
 
