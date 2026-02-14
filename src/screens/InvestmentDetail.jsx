@@ -1,9 +1,12 @@
 import { useState, useMemo } from 'react';
 import { mockInvestments } from '../mocks/investments.js';
-import { mockCashFlows } from '../mocks/cashflows.js';
+import { mockCashFlows, addCashflow } from '../mocks/cashflows.js';
 import { mockBanks } from '../mocks/banks.js';
 import { mockOwners } from '../mocks/owners.js';
 import { generateExpectedInterestSchedule } from '../utils/interestEngine.js';
+import { createCashFlow, preserveManualCashflows } from '../models/CashFlow.js';
+import { getEffectiveMaturityAmount } from '../utils/cashflowAdjustments.js';
+import CashflowAdjustmentModal from '../components/CashflowAdjustmentModal.jsx';
 import '../styles/InvestmentDetail.css';
 
 const formatDate = (dateString) => {
@@ -77,6 +80,18 @@ const getFinancialYearRange = (dateString) => {
 };
 
 export default function InvestmentDetail({ investmentId, onBack }) {
+  // Initialize state first before any useMemo hooks that depend on them
+  const [expandedFYs, setExpandedFYs] = useState(() => {
+    const today = new Date();
+    const month = today.getMonth();
+    const year = today.getFullYear();
+    const currentFY = month >= 3 ? `FY${year}-${String(year + 1).slice(-2)}` : `FY${year - 1}-${String(year).slice(-2)}`;
+    return new Set([currentFY]);
+  });
+
+  const [adjustmentModal, setAdjustmentModal] = useState(null);
+  const [allCashflows, setAllCashflows] = useState(mockCashFlows);
+
   const investment = useMemo(
     () => mockInvestments.find((inv) => inv.id === investmentId),
     [investmentId]
@@ -88,8 +103,8 @@ export default function InvestmentDetail({ investmentId, onBack }) {
   // Get persisted cashflows only (not preview)
   const persistedCashflows = useMemo(() => {
     if (!investment) return [];
-    return mockCashFlows.filter((cf) => cf.investmentId === investmentId);
-  }, [investment, investmentId]);
+    return allCashflows.filter((cf) => cf.investmentId === investmentId);
+  }, [investment, investmentId, allCashflows]);
 
   // Backfill missing TDS_DEDUCTION cashflows for existing investments
   // If investment has tds in name or we detect it was created with TDS but has no tds_deduction cashflows
@@ -141,23 +156,28 @@ export default function InvestmentDetail({ investmentId, onBack }) {
     Object.entries(groupedByFY).forEach(([fy, cashflows]) => {
       let interestEarned = 0;
       let tdsDeducted = 0;
-      
+      let adjustments = 0;
 
       cashflows.forEach((cf) => {
-          // Sum interest (include interest_payout, accrued_interest, and interest_accrual types)
-          if (cf.type === 'interest_payout' || cf.type === 'accrued_interest' || cf.type === 'interest' || cf.type === 'interest_accrual') {
+        // Sum interest (include interest_payout, accrued_interest, and interest_accrual types)
+        if (cf.type === 'interest_payout' || cf.type === 'accrued_interest' || cf.type === 'interest' || cf.type === 'interest_accrual') {
           interestEarned += cf.amount;
         }
         // Sum TDS (tds_deduction, tds types)
         if (cf.type === 'tds_deduction' || cf.type === 'tds') {
           tdsDeducted += Math.abs(cf.amount); // Make positive for display
         }
+        // Sum adjustments (manual corrections)
+        if (cf.type === 'ADJUSTMENT') {
+          adjustments += cf.amount;
+        }
       });
       
       summaries[fy] = {
         interestEarned: Math.round(interestEarned),
         tdsDeducted: Math.round(tdsDeducted),
-        netIncome: Math.round(interestEarned - tdsDeducted),
+        adjustments: Math.round(adjustments),
+        netIncome: Math.round(interestEarned - tdsDeducted + adjustments),
       };
     });
     
@@ -269,19 +289,34 @@ export default function InvestmentDetail({ investmentId, onBack }) {
     }
   }
 
-  const [expandedFYs, setExpandedFYs] = useState(() => {
-    const today = new Date();
-    const month = today.getMonth();
-    const year = today.getFullYear();
-    const currentFY = month >= 3 ? `FY${year}-${String(year + 1).slice(-2)}` : `FY${year - 1}-${String(year).slice(-2)}`;
-    return new Set([currentFY]);
-  });
-
   const toggleFY = (fy) => {
     const next = new Set(expandedFYs);
     if (next.has(fy)) next.delete(fy);
     else next.add(fy);
     setExpandedFYs(next);
+  };
+
+  const handleAdjustCashflow = (cashflow) => {
+    // Only allow adjusting system cashflows
+    if (cashflow.source !== 'system') {
+      alert('Cannot adjust manual entries directly. Only system cashflows can be adjusted.');
+      return;
+    }
+    setAdjustmentModal(cashflow);
+  };
+
+  const handleAdjustmentSubmit = (adjustment) => {
+    const newCashflow = createCashFlow(adjustment);
+    // Persist adjustment to mock data (source of truth)
+    addCashflow(newCashflow);
+    // Reload all cashflows from mock data to ensure single source of truth
+    // This prevents duplicate entries and ensures state is always in sync with the ledger
+    setAllCashflows([...mockCashFlows]);
+    setAdjustmentModal(null);
+  };
+
+  const handleAdjustmentCancel = () => {
+    setAdjustmentModal(null);
   };
 
   if (!investment) {
@@ -341,7 +376,7 @@ export default function InvestmentDetail({ investmentId, onBack }) {
           <div className="grid-label">Principal</div>
           <div className="grid-value">{formatCurrency(investment.principal)}</div>
           <div className="grid-label">Expected Maturity Amount</div>
-          <div className="grid-value">{investment.expectedMaturityAmount ? formatCurrency(investment.expectedMaturityAmount) : '—'}</div>
+          <div className="grid-value">{getEffectiveMaturityAmount(investment, allCashflows) ? formatCurrency(getEffectiveMaturityAmount(investment, allCashflows)) : '—'}</div>
 
           <div className="section-title">Dates</div>
 
@@ -381,33 +416,63 @@ export default function InvestmentDetail({ investmentId, onBack }) {
                   </button>
                   {isExpanded && (
                     <div id={`fy-content-${fy}`} className="cashflow-rows">
-                      {groupedByFY[fy].map((cf) => (
-                        <div
-                          key={cf.id}
-                          className={`cashflow-row cf-type-${cf.type} cf-source-${cf.source} cf-status-${cf.status} ${cf.isPreview ? 'preview-row' : ''}`}
-                          role="listitem"
-                        >
-                          <div className="cf-date">{formatDate(cf.date)}</div>
-                          <div className="cf-type">
-                            {cf.isPreview ? (
-                              <>
-                                <span className="preview-label">Expected</span> {getCashflowTypeLabel(cf.type)}
-                              </>
-                            ) : (
-                              getCashflowTypeLabel(cf.type)
+                      {groupedByFY[fy].map((cf) => {
+                        const isSystemCashflow = cf.source === 'system';
+                        const isAdjustment = cf.type === 'ADJUSTMENT';
+                        const linkedCashflow = isAdjustment 
+                          ? persistedCashflows.find(c => c.id === cf.adjustsCashflowId)
+                          : null;
+                        
+                        return (
+                          <div
+                            key={cf.id}
+                            className={`cashflow-row cf-type-${cf.type} cf-source-${cf.source} cf-status-${cf.status} ${cf.isPreview ? 'preview-row' : ''} ${isAdjustment ? 'cf-adjustment-entry' : ''}`}
+                            role="listitem"
+                          >
+                            <div className="cf-date">{formatDate(cf.date)}</div>
+                            <div className="cf-type">
+                              {cf.isPreview ? (
+                                <>
+                                  <span className="preview-label">Expected</span> {getCashflowTypeLabel(cf.type)}
+                                </>
+                              ) : (
+                                <>
+                                  {getCashflowTypeLabel(cf.type)}
+                                  {isAdjustment && cf.reason && (
+                                    <div className="cf-adjustment-reason">{cf.reason}</div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            <div className={`cf-amount cf-type-${cf.type} ${cf.amount < 0 ? 'cf-amount-negative' : 'cf-amount-positive'}`}>
+                              {cf.amount < 0 ? '−' : ''}{formatCurrency(Math.abs(cf.amount))}
+                            </div>
+                            <div className="cf-source">{cf.source}</div>
+                            <div className="cf-status"><span className={`status-pill cf-status-${cf.status}`}>{cf.status}</span></div>
+                            <div className="cf-actions">
+                              {isSystemCashflow && !cf.isPreview && (
+                                <button
+                                  className="btn-adjust-cashflow"
+                                  onClick={() => handleAdjustCashflow(cf)}
+                                  title="Create adjustment entry for this cashflow"
+                                  aria-label={`Adjust ${getCashflowTypeLabel(cf.type)}`}
+                                >
+                                  Adjust
+                                </button>
+                              )}
+                            </div>
+                            {cf.type === 'reinvestment' && cf.reinvestedInvestmentId && (
+                              <div className="cf-detail">Reinvested into: <span className="mono">{cf.reinvestedInvestmentId}</span></div>
+                            )}
+                            {cf.periodNote && <div className="cf-detail period-note">{cf.periodNote}</div>}
+                            {isAdjustment && linkedCashflow && (
+                              <div className="cf-detail cf-linked-info">
+                                Adjusts: {getCashflowTypeLabel(linkedCashflow.type)} (₹{Math.abs(linkedCashflow.amount).toLocaleString('en-IN')})
+                              </div>
                             )}
                           </div>
-                          <div className={`cf-amount cf-type-${cf.type} ${cf.amount < 0 ? 'cf-amount-negative' : 'cf-amount-positive'}`}>
-                            {cf.amount < 0 ? '−' : ''}{formatCurrency(Math.abs(cf.amount))}
-                          </div>
-                          <div className="cf-source">{cf.source}</div>
-                          <div className="cf-status"><span className={`status-pill cf-status-${cf.status}`}>{cf.status}</span></div>
-                          {cf.type === 'reinvestment' && cf.reinvestedInvestmentId && (
-                            <div className="cf-detail">Reinvested into: <span className="mono">{cf.reinvestedInvestmentId}</span></div>
-                          )}
-                          {cf.periodNote && <div className="cf-detail period-note">{cf.periodNote}</div>}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -438,6 +503,14 @@ export default function InvestmentDetail({ investmentId, onBack }) {
                         <span style={{ float: 'right', color: '#b91c1c' }}>₹{summary.tdsDeducted.toLocaleString('en-IN')}</span>
                       </div>
                     )}
+                    {summary.adjustments !== 0 && (
+                      <div>
+                        <span style={{ color: '#6b7280' }}>Adjustments:</span>
+                        <span style={{ float: 'right', color: summary.adjustments > 0 ? '#16a34a' : '#b91c1c', fontWeight: '500' }}>
+                          {summary.adjustments > 0 ? '+' : ''}₹{summary.adjustments.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    )}
                     <div style={{ borderTop: '1px solid #d1d5db', marginTop: '8px', paddingTop: '8px', fontWeight: 'bold' }}>
                       <span>Net Income:</span>
                       <span style={{ float: 'right', color: '#16a34a' }}>₹{summary.netIncome.toLocaleString('en-IN')}</span>
@@ -465,6 +538,14 @@ export default function InvestmentDetail({ investmentId, onBack }) {
           <div className="stat-item"><span className="stat-label">Net Cashflow</span><span className={`stat-value ${sortedCashflows.reduce((s, cf) => s + cf.amount, 0) >= 0 ? 'positive' : 'negative'}`}>{formatCurrency(sortedCashflows.reduce((s, cf) => s + cf.amount, 0))}</span></div>
         </div>
       </div>
+
+      {adjustmentModal && (
+        <CashflowAdjustmentModal
+          cashflow={adjustmentModal}
+          onSubmit={handleAdjustmentSubmit}
+          onCancel={handleAdjustmentCancel}
+        />
+      )}
     </div>
   );
 }

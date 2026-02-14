@@ -86,12 +86,14 @@ export const mockCashFlows = [
     id: '550e8400-e29b-41d4-a716-446655440432',
     investmentId: '550e8400-e29b-41d4-a716-446655440304',
     date: '2025-01-20',
-    type: 'adjustment',
+    type: 'ADJUSTMENT',
     amount: 250.00,
     financialYear: '2024-25',
     source: 'manual',
     status: 'confirmed',
     adjustsCashflowId: '550e8400-e29b-41d4-a716-446655440431',
+    linkedTo: 'INTEREST',
+    isManual: true,
   },
 
   {
@@ -439,11 +441,13 @@ export const mockCashFlows = [
     id: '550e8400-e29b-41d4-a716-446655451008',
     investmentId: '550e8400-e29b-41d4-a716-446655440310',
     date: '2024-12-10',
-    type: 'adjustment',
+    type: 'ADJUSTMENT',
     amount: 125.50,
     financialYear: '2024-25',
     source: 'manual',
     status: 'confirmed',
+    linkedTo: 'INTEREST',
+    isManual: true,
   },
 
   // FY 2025-26: Q1 (Nov 30 - Feb 28)

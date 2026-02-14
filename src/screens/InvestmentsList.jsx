@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { mockInvestments } from '../mocks/investments.js';
+import { mockCashFlows } from '../mocks/cashflows.js';
 import { mockInvestmentTypes } from '../mocks/investmentTypes.js';
 import { mockBanks } from '../mocks/banks.js';
 import { mockOwners } from '../mocks/owners.js';
+import { getEffectiveMaturityAmount } from '../utils/cashflowAdjustments.js';
 import '../styles/InvestmentsList.css';
 
 /**
@@ -68,9 +70,14 @@ export default function InvestmentsList({ onSelectInvestment }) {
     copy.sort((a, b) => {
       const key = sortBy.key;
       // numeric keys
-      if (key === 'principal' || key === 'interestRate' || key === 'expectedMaturityAmount') {
+      if (key === 'principal' || key === 'interestRate') {
         const va = a[key] == null ? -Infinity : a[key];
         const vb = b[key] == null ? -Infinity : b[key];
+        return (va - vb) * dir;
+      }
+      if (key === 'expectedMaturityAmount') {
+        const va = getEffectiveMaturityAmount(a, mockCashFlows) ?? -Infinity;
+        const vb = getEffectiveMaturityAmount(b, mockCashFlows) ?? -Infinity;
         return (va - vb) * dir;
       }
       if (key === 'status') {
@@ -317,7 +324,7 @@ export default function InvestmentsList({ onSelectInvestment }) {
                 <td className="cell-principal">{formatCurrency(investment.principal)}</td>
                 <td className="cell-date">{formatDate(investment.startDate)}</td>
                 <td className="cell-date">{formatDate(investment.maturityDate)}</td>
-                <td className="cell-maturity">{investment.expectedMaturityAmount ? formatCurrency(investment.expectedMaturityAmount) : '—'}</td>
+                <td className="cell-maturity">{getEffectiveMaturityAmount(investment, mockCashFlows) ? formatCurrency(getEffectiveMaturityAmount(investment, mockCashFlows)) : '—'}</td>
                 <td className="cell-status">
                   <span className={`status-badge status-${investment.status}`} aria-label={`Status: ${investment.status.charAt(0).toUpperCase() + investment.status.slice(1)}`}>
                     {investment.status.charAt(0).toUpperCase() + investment.status.slice(1)}

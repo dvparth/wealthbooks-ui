@@ -470,6 +470,73 @@
   color: #92400e;
 }
 
+/* Adjustment Entry Styling */
+.cashflow-row.cf-adjustment-entry {
+  background-color: #fef3c7;
+  border-left: 4px solid #d97706;
+  margin-left: 1.5rem;
+}
+
+.cashflow-row.cf-adjustment-entry .cf-type {
+  font-style: italic;
+  color: #92400e;
+}
+
+.cf-adjustment-reason {
+  font-size: 0.85rem;
+  color: #b45309;
+  font-style: italic;
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid #fcd34d;
+  display: block;
+}
+
+.cf-linked-info {
+  color: #b45309;
+  background-color: #fef08a;
+  border-left: 2px solid #d97706;
+  padding: 0.5rem;
+  margin-left: 0;
+  margin-top: 0.5rem;
+  border-radius: 4px;
+}
+
+/* Cashflow Actions */
+.cf-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.btn-adjust-cashflow {
+  padding: 0.4rem 0.8rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-adjust-cashflow:hover {
+  background-color: #2563eb;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.4);
+}
+
+.btn-adjust-cashflow:active {
+  background-color: #1d4ed8;
+}
+
+.btn-adjust-cashflow:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* Audit Summary */
 .audit-summary {
   background: white;

@@ -550,6 +550,17 @@ function CreateInvestmentStep3({ onBack, onDone }) {
     }
   }, [isMatured, effectiveMaturityAmount, step2])
 
+  // Helper to get financial year
+  const getFinancialYear = (dateString) => {
+    const date = new Date(dateString)
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    if (month >= 3) {
+      return `FY${year}-${String(year + 1).slice(-2)}`
+    }
+    return `FY${year - 1}-${String(year).slice(-2)}`
+  }
+
   // TDS estimation is controlled solely by the user's choice in step2
   const estimatedTDS = useMemo(() => {
     if (isMatured && maturedCalculations) {
@@ -949,6 +960,32 @@ VALIDATION:
       })
 
       console.debug('[Step3] Created', previewCashflows.length, 'interest cashflows')
+
+      // If user manually entered a maturity amount different from calculated, create an ADJUSTMENT entry
+      // This ensures the "Expected Maturity Amount" display reflects the manual edit
+      if (actualMaturityAmount && parseFloat(actualMaturityAmount) > 0) {
+        const userMaturityAmount = parseFloat(actualMaturityAmount)
+        const calculatedMaturityAmount = finalMaturityAmount
+        
+        if (Math.abs(userMaturityAmount - calculatedMaturityAmount) > 0.01) {
+          // User entered a different maturity amount - create adjustment
+          const adjustmentDelta = userMaturityAmount - calculatedMaturityAmount
+          const adjustmentCashflow = createCashFlow({
+            investmentId: newInvestment.id,
+            date: step1.maturityDate,
+            type: 'ADJUSTMENT',
+            linkedTo: 'MATURITY',
+            amount: adjustmentDelta,
+            source: 'manual',
+            financialYear: getFinancialYear(step1.maturityDate),
+            status: 'confirmed',
+            reason: 'Manual maturity amount override from Step 3',
+            isManual: true,
+          })
+          addCashflow(adjustmentCashflow)
+          console.debug('[Step3] Created ADJUSTMENT cashflow for manual maturity override:', adjustmentDelta)
+        }
+      }
 
       // TDS must be generated alongside each taxable interest cashflow
       // Generate TDS_DEDUCTION cashflows on the same date interest becomes taxable
