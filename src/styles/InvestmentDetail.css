@@ -682,3 +682,106 @@
     font-size: 1rem;
   }
 }
+/* Closure Diagnostics Card */
+.closure-diagnostics-card {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid #fca5a5;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.diagnostics-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #f87171;
+  padding-bottom: 0.5rem;
+}
+
+.diagnostics-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.diag-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.diag-label {
+  font-weight: 500;
+  color: #7f1d1d;
+}
+
+.diag-value {
+  font-weight: 600;
+  color: #111827;
+  text-align: right;
+}
+
+/* Maturity Analysis Card */
+.maturity-analysis-card {
+  background: white;
+  border-radius: 12px;
+  border-left: 4px solid #059669;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.analysis-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #86efac;
+  padding-bottom: 0.5rem;
+}
+
+.analysis-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #065f46;
+  font-weight: 600;
+}
+
+.analysis-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.analysis-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(240, 253, 250, 0.6);
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.analysis-label {
+  font-weight: 500;
+  color: #065f46;
+}
+
+.analysis-value {
+  font-weight: 600;
+  color: #111827;
+  text-align: right;
+}

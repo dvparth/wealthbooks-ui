@@ -5,8 +5,10 @@ import { mockBanks } from '../mocks/banks.js';
 import { mockOwners } from '../mocks/owners.js';
 import { generateExpectedInterestSchedule } from '../utils/interestEngine.js';
 import { createCashFlow, preserveManualCashflows } from '../models/CashFlow.js';
-import { getEffectiveMaturityAmount } from '../utils/cashflowAdjustments.js';
+import { getEffectiveMaturityAmount, getGrossMaturityAmount, getNetMaturityAmount, getTotalTDSForInvestment, removeFutureCashflows, generatePrematureClosureCashflows } from '../utils/cashflowAdjustments.js';
+import { getClosureDiagnostics } from '../utils/prematureClosureCalculator.js';
 import CashflowAdjustmentModal from '../components/CashflowAdjustmentModal.jsx';
+import PrematureClosureModal from '../components/PrematureClosureModal.jsx';
 import '../styles/InvestmentDetail.css';
 
 const formatDate = (dateString) => {
@@ -90,6 +92,7 @@ export default function InvestmentDetail({ investmentId, onBack }) {
   });
 
   const [adjustmentModal, setAdjustmentModal] = useState(null);
+  const [closureModal, setClosureModal] = useState(false);
   const [allCashflows, setAllCashflows] = useState(mockCashFlows);
 
   const investment = useMemo(
@@ -168,7 +171,7 @@ export default function InvestmentDetail({ investmentId, onBack }) {
           tdsDeducted += Math.abs(cf.amount); // Make positive for display
         }
         // Sum adjustments (manual corrections)
-        if (cf.type === 'ADJUSTMENT') {
+        if (cf.type === 'adjustment') {
           adjustments += cf.amount;
         }
       });
@@ -319,6 +322,47 @@ export default function InvestmentDetail({ investmentId, onBack }) {
     setAdjustmentModal(null);
   };
 
+  const handlePrematureClosureSubmit = (prematureClosure) => {
+    if (!investment) return;
+
+    // Update investment with closure data
+    investment.prematureClosure = prematureClosure;
+    investment.status = 'closed';
+
+    // Get the financial year of closure for cashflow generation
+    const closureDateObj = new Date(prematureClosure.closureDate);
+    const year = closureDateObj.getFullYear();
+    const month = closureDateObj.getMonth();
+    const financialYear = month >= 3 
+      ? `FY${year}-${String(year + 1).slice(-2)}` 
+      : `FY${year - 1}-${String(year).slice(-2)}`;
+
+    // Step 1: Filter out future cashflows after closure date
+    const remainingCashflows = removeFutureCashflows(allCashflows, prematureClosure.closureDate);
+
+    // Step 2: Generate new closure cashflows
+    const closureCashflows = generatePrematureClosureCashflows(
+      investment,
+      prematureClosure,
+      financialYear
+    );
+
+    // Step 3: Add all new cashflows to mock data
+    closureCashflows.forEach(cf => addCashflow(cf));
+
+    // Step 4: Update local state with the final cashflows
+    const finalCashflows = [
+      ...remainingCashflows,
+      ...closureCashflows
+    ];
+    setAllCashflows(finalCashflows);
+    setClosureModal(false);
+  };
+
+  const handleClosureCancel = () => {
+    setClosureModal(false);
+  };
+
   if (!investment) {
     return (
       <div className="investment-detail-container">
@@ -341,6 +385,36 @@ export default function InvestmentDetail({ investmentId, onBack }) {
           >
             📋 Copy diagnostics
           </button>
+          {investment.status === 'active' && !investment.prematureClosure?.isClosed && (
+            <button
+              className="btn-warning"
+              onClick={() => setClosureModal(true)}
+              style={{ padding: '6px 10px', borderRadius: '6px', background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer' }}
+              title="Close this investment before maturity date"
+            >
+              🔒 Premature Closure
+            </button>
+          )}
+          {investment.prematureClosure?.isClosed && (
+            <span style={{ padding: '6px 10px', borderRadius: '6px', background: '#fee2e2', color: '#991b1b', fontSize: '12px', fontWeight: 'bold' }}>
+              ✓ Premature closure on {investment.prematureClosure.closureDate}
+            </span>
+          )}
+          {!investment.prematureClosure?.isClosed && !investment.closure?.isClosed && (
+            <button
+              className="btn-secondary"
+              onClick={() => setClosureModal(true)}
+              style={{ padding: '6px 10px', borderRadius: '6px', background: '#8b5cf6', color: '#fff', border: 'none', cursor: 'pointer' }}
+              title="Manually record investment closure with actual payout"
+            >
+              ✓ Record Maturity Closure
+            </button>
+          )}
+          {investment.closure?.isClosed && (
+            <span style={{ padding: '6px 10px', borderRadius: '6px', background: '#dbeafe', color: '#1e40af', fontSize: '12px', fontWeight: 'bold' }}>
+              ✓ Maturity closure on {investment.closure.closureDate}
+            </span>
+          )}
         </div>
       </div>
       <div className="investment-summary-card" role="region" aria-label="Investment summary">
@@ -375,8 +449,10 @@ export default function InvestmentDetail({ investmentId, onBack }) {
 
           <div className="grid-label">Principal</div>
           <div className="grid-value">{formatCurrency(investment.principal)}</div>
-          <div className="grid-label">Expected Maturity Amount</div>
-          <div className="grid-value">{getEffectiveMaturityAmount(investment, allCashflows) ? formatCurrency(getEffectiveMaturityAmount(investment, allCashflows)) : '—'}</div>
+          <div className="grid-label">Gross Maturity</div>
+          <div className="grid-value">{formatCurrency(getGrossMaturityAmount(investment, allCashflows))}</div>
+          <div className="grid-label">Net Maturity (After TDS)</div>
+          <div className="grid-value" style={{ fontWeight: 'bold', color: '#15803d' }}>{formatCurrency(getNetMaturityAmount(investment, allCashflows))}</div>
 
           <div className="section-title">Dates</div>
 
@@ -384,8 +460,154 @@ export default function InvestmentDetail({ investmentId, onBack }) {
           <div className="grid-value">{formatDate(investment.startDate)}</div>
           <div className="grid-label">Maturity Date</div>
           <div className="grid-value">{formatDate(investment.maturityDate)}</div>
+          {investment.prematureClosure?.isClosed && (
+            <>
+              <div className="grid-label">Premature Closure Date</div>
+              <div className="grid-value" style={{ color: '#dc2626', fontWeight: 'bold' }}>{formatDate(investment.prematureClosure.closureDate)}</div>
+            </>
+          )}
+          {investment.closure?.isClosed && (
+            <>
+              <div className="grid-label">Maturity Closure Date</div>
+              <div className="grid-value" style={{ color: '#1e40af', fontWeight: 'bold' }}>{formatDate(investment.closure.closureDate)}</div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Maturity Analysis Card - Shows breakdown of maturity amount from ledger */}
+      {!investment.prematureClosure?.isClosed && !investment.closure?.isClosed && (
+        <div className="maturity-analysis-card" role="region" aria-label="Maturity amount breakdown">
+          <div className="analysis-header">
+            <h3>Maturity Amount Analysis</h3>
+          </div>
+          <div className="analysis-grid">
+            {(() => {
+              const grossMaturity = getGrossMaturityAmount(investment, allCashflows);
+              const totalTDS = getTotalTDSForInvestment(investment.id, allCashflows);
+              const netMaturity = getNetMaturityAmount(investment, allCashflows);
+
+              return (
+                <>
+                  <div className="analysis-row" style={{ backgroundColor: '#f0fdf4', borderLeft: '3px solid #059669' }}>
+                    <span className="analysis-label">Gross Maturity:</span>
+                    <span className="analysis-value" style={{ fontWeight: 'bold' }}>{formatCurrency(grossMaturity)}</span>
+                  </div>
+                  {totalTDS > 0 && (
+                    <div className="analysis-row" style={{ color: '#dc2626', backgroundColor: '#fef2f2' }}>
+                      <span className="analysis-label">TDS Deductions:</span>
+                      <span className="analysis-value">−{formatCurrency(totalTDS)}</span>
+                    </div>
+                  )}
+                  <div className="analysis-row" style={{ backgroundColor: '#f3f4f6', borderTop: '2px solid #d1d5db', paddingTop: '8px', marginTop: '8px' }}>
+                    <span className="analysis-label">Net Maturity (Final Payout):</span>
+                    <span className="analysis-value" style={{ fontWeight: 'bold', color: '#15803d', fontSize: '1.1em' }}>{formatCurrency(netMaturity)}</span>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {investment.closure?.isClosed && (
+        <div className="maturity-analysis-card" role="region" aria-label="Maturity closure details">
+          <div className="analysis-header">
+            <h3>Maturity Closure Details</h3>
+          </div>
+          <div className="analysis-grid">
+            {(() => {
+              const grossMaturity = getGrossMaturityAmount(investment, allCashflows);
+              const totalTDS = getTotalTDSForInvestment(investment.id, allCashflows);
+              const netMaturity = getNetMaturityAmount(investment, allCashflows);
+              const actualPayout = investment.closure.actualPayoutAmount;
+              const delta = actualPayout - netMaturity;
+
+              return (
+                <>
+                  <div className="analysis-row">
+                    <span className="analysis-label">Gross Maturity:</span>
+                    <span className="analysis-value">{formatCurrency(grossMaturity)}</span>
+                  </div>
+                  {totalTDS > 0 && (
+                    <div className="analysis-row" style={{ color: '#dc2626' }}>
+                      <span className="analysis-label">TDS Deducted:</span>
+                      <span className="analysis-value">−{formatCurrency(totalTDS)}</span>
+                    </div>
+                  )}
+                  <div className="analysis-row">
+                    <span className="analysis-label">Net Maturity:</span>
+                    <span className="analysis-value">{formatCurrency(netMaturity)}</span>
+                  </div>
+                  <div className="analysis-row" style={{ borderTop: '2px solid #d1d5db', paddingTop: '8px', marginTop: '8px', fontWeight: 'bold' }}>
+                    <span className="analysis-label">Closed on:</span>
+                    <span className="analysis-value">{formatDate(investment.closure.closureDate)}</span>
+                  </div>
+                  <div className="analysis-row" style={{ backgroundColor: '#f3f4f6', borderTop: '1px solid #d1d5db', paddingTop: '8px', marginTop: '8px' }}>
+                    <span className="analysis-label">Actual Payout:</span>
+                    <span className="analysis-value" style={{ fontWeight: 'bold', color: '#15803d', fontSize: '1.1em' }}>{formatCurrency(actualPayout)}</span>
+                  </div>
+                  {delta !== 0 && (
+                    <div className="analysis-row" style={{ color: delta > 0 ? '#15803d' : '#dc2626' }}>
+                      <span className="analysis-label">Adjustment Delta:</span>
+                      <span className="analysis-value">{delta > 0 ? '+' : ''}{formatCurrency(delta)}</span>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {investment.prematureClosure?.isClosed && getClosureDiagnostics(investment, investment.prematureClosure) && (
+        <div className="closure-diagnostics-card" role="region" aria-label="Closure diagnostics">
+          <div className="diagnostics-header">
+            <h3>Premature Closure Details</h3>
+          </div>
+          <div className="diagnostics-grid">
+            {(() => {
+              const diag = getClosureDiagnostics(investment, investment.prematureClosure);
+              return (
+                <>
+                  <div className="diag-row">
+                    <span className="diag-label">Days Held:</span>
+                    <span className="diag-value">{diag.daysHeld} of {diag.daysToMaturity} days ({diag.percentageHeld})</span>
+                  </div>
+                  <div className="diag-row">
+                    <span className="diag-label">Original Rate:</span>
+                    <span className="diag-value">{diag.originalRate}%</span>
+                  </div>
+                  {diag.penaltyRate > 0 && (
+                    <div className="diag-row">
+                      <span className="diag-label">Penalty Rate:</span>
+                      <span className="diag-value" style={{ color: '#dc2626' }}>−{diag.penaltyRate}%</span>
+                    </div>
+                  )}
+                  <div className="diag-row">
+                    <span className="diag-label">Effective Rate:</span>
+                    <span className="diag-value">{diag.effectiveRate}%</span>
+                  </div>
+                  <div className="diag-row">
+                    <span className="diag-label">Recalculated Interest:</span>
+                    <span className="diag-value">{formatCurrency(diag.recalculatedInterest)}</span>
+                  </div>
+                  {diag.penaltyAmount > 0 && (
+                    <div className="diag-row">
+                      <span className="diag-label">Penalty Deduction:</span>
+                      <span className="diag-value" style={{ color: '#dc2626' }}>−{formatCurrency(diag.penaltyAmount)}</span>
+                    </div>
+                  )}
+                  <div className="diag-row" style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', marginTop: '8px', fontWeight: 'bold' }}>
+                    <span className="diag-label">Final Payout:</span>
+                    <span className="diag-value" style={{ color: '#15803d' }}>{formatCurrency(diag.finalPayout)}</span>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       <div className="cashflow-timeline" role="region" aria-label="Cashflow timeline">
         <h2 className="timeline-title">Cashflow Timeline</h2>
@@ -418,7 +640,7 @@ export default function InvestmentDetail({ investmentId, onBack }) {
                     <div id={`fy-content-${fy}`} className="cashflow-rows">
                       {groupedByFY[fy].map((cf) => {
                         const isSystemCashflow = cf.source === 'system';
-                        const isAdjustment = cf.type === 'ADJUSTMENT';
+                        const isAdjustment = cf.type === 'adjustment';
                         const linkedCashflow = isAdjustment 
                           ? persistedCashflows.find(c => c.id === cf.adjustsCashflowId)
                           : null;
@@ -544,6 +766,14 @@ export default function InvestmentDetail({ investmentId, onBack }) {
           cashflow={adjustmentModal}
           onSubmit={handleAdjustmentSubmit}
           onCancel={handleAdjustmentCancel}
+        />
+      )}
+
+      {closureModal && (
+        <PrematureClosureModal
+          investment={investment}
+          onSubmit={handlePrematureClosureSubmit}
+          onCancel={handleClosureCancel}
         />
       )}
     </div>

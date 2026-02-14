@@ -52,5 +52,16 @@ export const createInvestment = (data) => {
     closedAt: data.closedAt || null,
     closureAmount: data.closureAmount == null ? null : data.closureAmount,
     closureReason: data.closureReason || null,
+    // Premature closure metadata for investments closed before maturity
+    prematureClosure: data.prematureClosure || null,
+    // Format: {
+    //   isClosed: boolean,
+    //   closureDate: YYYY-MM-DD,
+    //   penaltyRate?: number (optional interest rate reduction),
+    //   penaltyAmount?: number (optional fixed penalty deduction),
+    //   recalculatedInterest?: number (computed interest up to closureDate),
+    //   finalPayout?: number (principal + interest - penalties),
+    //   maturityOverride?: number (optional user-specified payout amount, overrides calculations)
+    // }
   };
 };

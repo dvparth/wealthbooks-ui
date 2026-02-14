@@ -38,9 +38,19 @@ export default function CashflowAdjustmentModal({
       return;
     }
 
+    // Determine linkedTo based on cashflow type being adjusted
+    const getLinkedToByType = (type) => {
+      if (type === 'tds_deduction' || type === 'tds') return 'TDS';
+      if (type === 'interest' || type === 'compounded_interest') return 'INTEREST';
+      if (type === 'maturity_payout' || type === 'maturity') return 'MATURITY';
+      if (type === 'penalty') return 'PENALTY';
+      if (type === 'premature_closure') return 'PREMATURE_CLOSURE';
+      return 'MATURITY'; // Default fallback
+    };
+
     const adjustment = {
-      type: 'ADJUSTMENT',
-      linkedTo: 'MATURITY',
+      type: 'adjustment',
+      linkedTo: getLinkedToByType(cashflow.type),
       amount: parseFloat(adjustmentAmount),
       date: cashflow.date,
       source: 'manual',
