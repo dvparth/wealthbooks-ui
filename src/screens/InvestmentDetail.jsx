@@ -187,6 +187,12 @@ export default function InvestmentDetail({ investmentId, onBack }) {
     return summaries;
   }, [groupedByFY]);
 
+  // Precompute maturity summaries to simplify JSX rendering
+  const grossMaturity = investment ? getGrossMaturityAmount(investment, allCashflows) : 0;
+  const totalTDSForInvestment = investment ? getTotalTDSForInvestment(investment.id, allCashflows) : 0;
+  const netMaturityAmount = investment ? getNetMaturityAmount(investment, allCashflows) : 0;
+  const prematureDiag = investment?.prematureClosure ? getClosureDiagnostics(investment, investment.prematureClosure) : null;
+
   // Diagnostics: copy persisted-investment diagnostics + preview overlay
   const showDiagnosticsPreview = (text, title = 'Diagnostics') => {
     try {
@@ -374,92 +380,74 @@ export default function InvestmentDetail({ investmentId, onBack }) {
   return (
     <div className="investment-detail-container">
       <div className="detail-header">
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button className="back-button" onClick={() => onBack && onBack()} aria-label="Back to investments">
-            ← Back
+        <div className="header-bar">
+          <button className="back-button back-icon-btn" onClick={() => onBack && onBack()} aria-label="Back to investments">
+            ←
           </button>
+
           <button
-            className="btn-secondary"
+            className="action-btn copy-btn copy-diagnostics"
             onClick={() => handleCopyDiagnostics()}
-            style={{ padding: '6px 10px', borderRadius: '6px', background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer' }}
+            aria-label="Copy diagnostics"
+            title="Copy diagnostics"
           >
             📋 Copy diagnostics
           </button>
+        </div>
+
+        <div className="close-row">
+          <div className="secondary-actions">
           {investment.status === 'active' && !investment.prematureClosure?.isClosed && (
             <button
-              className="btn-warning"
+              className="action-btn close-btn btn-warning"
               onClick={() => setClosureModal(true)}
-              style={{ padding: '6px 10px', borderRadius: '6px', background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer' }}
               title="Close this investment before maturity date"
             >
-              🔒 Premature Closure
+              🔒 Close
             </button>
           )}
+
           {investment.prematureClosure?.isClosed && (
-            <span style={{ padding: '6px 10px', borderRadius: '6px', background: '#fee2e2', color: '#991b1b', fontSize: '12px', fontWeight: 'bold' }}>
+            <span className="action-pill action-pill-warning" style={{ fontSize: '12px', fontWeight: '700' }}>
               ✓ Premature closure on {investment.prematureClosure.closureDate}
             </span>
           )}
-          {!investment.prematureClosure?.isClosed && !investment.closure?.isClosed && (
-            <button
-              className="btn-secondary"
-              onClick={() => setClosureModal(true)}
-              style={{ padding: '6px 10px', borderRadius: '6px', background: '#8b5cf6', color: '#fff', border: 'none', cursor: 'pointer' }}
-              title="Manually record investment closure with actual payout"
-            >
-              ✓ Record Maturity Closure
-            </button>
-          )}
+
           {investment.closure?.isClosed && (
-            <span style={{ padding: '6px 10px', borderRadius: '6px', background: '#dbeafe', color: '#1e40af', fontSize: '12px', fontWeight: 'bold' }}>
+            <span className="action-pill action-pill-info" style={{ fontSize: '12px', fontWeight: '700' }}>
               ✓ Maturity closure on {investment.closure.closureDate}
             </span>
           )}
         </div>
-      </div>
-      <div className="investment-summary-card" role="region" aria-label="Investment summary">
-        <div className="summary-grid">
-          <div className="section-title">Identity</div>
-
-          <div className="grid-label">Investment ID</div>
-          <div className="grid-value mono">{investment.externalInvestmentId || investment.id}</div>
-          <div className="grid-label">Status</div>
-          <div className="grid-value">
-            <span className={`status-badge status-${investment.status}`}>{investment.status}</span>
           </div>
+      </div>
 
-          <div className="grid-label">Owner</div>
-          <div className="grid-value">{owner?.name || '—'}</div>
-          <div className="grid-label">&nbsp;</div>
-          <div className="grid-value">&nbsp;</div>
+      {/* Primary actions - prominent, full-width on mobile */}
+      <div className="primary-actions">
+        {!investment.prematureClosure?.isClosed && investment.status === 'active' && (
+          <button className="primary-btn premature-btn" onClick={() => setClosureModal(true)}>
+            🔒 Premature Closure
+          </button>
+        )}
 
-          <div className="section-title">Bank & Terms</div>
+        {!investment.prematureClosure?.isClosed && !investment.closure?.isClosed && (
+          <button className="primary-btn record-full-btn" onClick={() => setClosureModal(true)}>
+            ✓ Record Maturity Closure
+          </button>
+        )}
+      </div>
 
-          <div className="grid-label">Bank & Branch</div>
-          <div className="grid-value">{bank?.name || '—'}{bank?.branch ? ` (${bank.branch})` : ''}</div>
-          <div className="grid-label">Interest Calculation</div>
-          <div className="grid-value">{formatFrequency(investment.interestCalculationFrequency)}</div>
+      <div className="investment-summary-card" role="region" aria-label="Investment summary">
+          <div className="grid-value amount-display" style={{ fontWeight: 'bold', color: '#15803d' }}>{formatCurrency(getNetMaturityAmount(investment, allCashflows))}</div>
 
-          <div className="grid-label">Interest Payout</div>
-          <div className="grid-value">{formatFrequency(investment.interestPayoutFrequency)}</div>
-          <div className="grid-label">Interest Rate</div>
-          <div className="grid-value">{investment.interestRate ? `${investment.interestRate}%` : '—'}</div>
+          <div className="dates-card">
+            <div className="section-title">Dates</div>
 
-          <div className="section-title">Amounts</div>
-
-          <div className="grid-label">Principal</div>
-          <div className="grid-value">{formatCurrency(investment.principal)}</div>
-          <div className="grid-label">Gross Maturity</div>
-          <div className="grid-value">{formatCurrency(getGrossMaturityAmount(investment, allCashflows))}</div>
-          <div className="grid-label">Net Maturity (After TDS)</div>
-          <div className="grid-value" style={{ fontWeight: 'bold', color: '#15803d' }}>{formatCurrency(getNetMaturityAmount(investment, allCashflows))}</div>
-
-          <div className="section-title">Dates</div>
-
-          <div className="grid-label">Start Date</div>
-          <div className="grid-value">{formatDate(investment.startDate)}</div>
-          <div className="grid-label">Maturity Date</div>
-          <div className="grid-value">{formatDate(investment.maturityDate)}</div>
+            <div className="grid-label">Start Date</div>
+            <div className="grid-value">{formatDate(investment.startDate)}</div>
+            <div className="grid-label">Maturity Date</div>
+            <div className="grid-value">{formatDate(investment.maturityDate)}</div>
+          </div>
           {investment.prematureClosure?.isClosed && (
             <>
               <div className="grid-label">Premature Closure Date</div>
@@ -473,7 +461,6 @@ export default function InvestmentDetail({ investmentId, onBack }) {
             </>
           )}
         </div>
-      </div>
 
       {/* Maturity Analysis Card - Shows breakdown of maturity amount from ledger */}
       {!investment.prematureClosure?.isClosed && !investment.closure?.isClosed && (
@@ -482,30 +469,20 @@ export default function InvestmentDetail({ investmentId, onBack }) {
             <h3>Maturity Amount Analysis</h3>
           </div>
           <div className="analysis-grid">
-            {(() => {
-              const grossMaturity = getGrossMaturityAmount(investment, allCashflows);
-              const totalTDS = getTotalTDSForInvestment(investment.id, allCashflows);
-              const netMaturity = getNetMaturityAmount(investment, allCashflows);
-
-              return (
-                <>
-                  <div className="analysis-row" style={{ backgroundColor: '#f0fdf4', borderLeft: '3px solid #059669' }}>
-                    <span className="analysis-label">Gross Maturity:</span>
-                    <span className="analysis-value" style={{ fontWeight: 'bold' }}>{formatCurrency(grossMaturity)}</span>
-                  </div>
-                  {totalTDS > 0 && (
-                    <div className="analysis-row" style={{ color: '#dc2626', backgroundColor: '#fef2f2' }}>
-                      <span className="analysis-label">TDS Deductions:</span>
-                      <span className="analysis-value">−{formatCurrency(totalTDS)}</span>
-                    </div>
-                  )}
-                  <div className="analysis-row" style={{ backgroundColor: '#f3f4f6', borderTop: '2px solid #d1d5db', paddingTop: '8px', marginTop: '8px' }}>
-                    <span className="analysis-label">Net Maturity (Final Payout):</span>
-                    <span className="analysis-value" style={{ fontWeight: 'bold', color: '#15803d', fontSize: '1.1em' }}>{formatCurrency(netMaturity)}</span>
-                  </div>
-                </>
-              );
-            })()}
+            <div className="analysis-row" style={{ backgroundColor: '#f0fdf4', borderLeft: '3px solid #059669' }}>
+              <span className="analysis-label">Gross Maturity:</span>
+              <span className="analysis-value" style={{ fontWeight: 'bold' }}>{formatCurrency(grossMaturity)}</span>
+            </div>
+            {totalTDSForInvestment > 0 && (
+              <div className="analysis-row" style={{ color: '#dc2626', backgroundColor: '#fef2f2' }}>
+                <span className="analysis-label">TDS Deductions:</span>
+                <span className="analysis-value">−{formatCurrency(totalTDSForInvestment)}</span>
+              </div>
+            )}
+            <div className="analysis-row" style={{ backgroundColor: '#f3f4f6', borderTop: '2px solid #d1d5db', paddingTop: '8px', marginTop: '8px' }}>
+              <span className="analysis-label">Net Maturity (Final Payout):</span>
+              <span className="analysis-value" style={{ fontWeight: 'bold', color: '#15803d', fontSize: '1.1em' }}>{formatCurrency(netMaturityAmount)}</span>
+            </div>
           </div>
         </div>
       )}
@@ -516,95 +493,76 @@ export default function InvestmentDetail({ investmentId, onBack }) {
             <h3>Maturity Closure Details</h3>
           </div>
           <div className="analysis-grid">
-            {(() => {
-              const grossMaturity = getGrossMaturityAmount(investment, allCashflows);
-              const totalTDS = getTotalTDSForInvestment(investment.id, allCashflows);
-              const netMaturity = getNetMaturityAmount(investment, allCashflows);
-              const actualPayout = investment.closure.actualPayoutAmount;
-              const delta = actualPayout - netMaturity;
-
-              return (
-                <>
-                  <div className="analysis-row">
-                    <span className="analysis-label">Gross Maturity:</span>
-                    <span className="analysis-value">{formatCurrency(grossMaturity)}</span>
-                  </div>
-                  {totalTDS > 0 && (
-                    <div className="analysis-row" style={{ color: '#dc2626' }}>
-                      <span className="analysis-label">TDS Deducted:</span>
-                      <span className="analysis-value">−{formatCurrency(totalTDS)}</span>
-                    </div>
-                  )}
-                  <div className="analysis-row">
-                    <span className="analysis-label">Net Maturity:</span>
-                    <span className="analysis-value">{formatCurrency(netMaturity)}</span>
-                  </div>
-                  <div className="analysis-row" style={{ borderTop: '2px solid #d1d5db', paddingTop: '8px', marginTop: '8px', fontWeight: 'bold' }}>
-                    <span className="analysis-label">Closed on:</span>
-                    <span className="analysis-value">{formatDate(investment.closure.closureDate)}</span>
-                  </div>
-                  <div className="analysis-row" style={{ backgroundColor: '#f3f4f6', borderTop: '1px solid #d1d5db', paddingTop: '8px', marginTop: '8px' }}>
-                    <span className="analysis-label">Actual Payout:</span>
-                    <span className="analysis-value" style={{ fontWeight: 'bold', color: '#15803d', fontSize: '1.1em' }}>{formatCurrency(actualPayout)}</span>
-                  </div>
-                  {delta !== 0 && (
-                    <div className="analysis-row" style={{ color: delta > 0 ? '#15803d' : '#dc2626' }}>
-                      <span className="analysis-label">Adjustment Delta:</span>
-                      <span className="analysis-value">{delta > 0 ? '+' : ''}{formatCurrency(delta)}</span>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+            <div className="analysis-row">
+              <span className="analysis-label">Gross Maturity:</span>
+              <span className="analysis-value">{formatCurrency(grossMaturity)}</span>
+            </div>
+            {totalTDSForInvestment > 0 && (
+              <div className="analysis-row" style={{ color: '#dc2626' }}>
+                <span className="analysis-label">TDS Deducted:</span>
+                <span className="analysis-value">−{formatCurrency(totalTDSForInvestment)}</span>
+              </div>
+            )}
+            <div className="analysis-row">
+              <span className="analysis-label">Net Maturity:</span>
+              <span className="analysis-value">{formatCurrency(netMaturityAmount)}</span>
+            </div>
+            <div className="analysis-row" style={{ borderTop: '2px solid #d1d5db', paddingTop: '8px', marginTop: '8px', fontWeight: 'bold' }}>
+              <span className="analysis-label">Closed on:</span>
+              <span className="analysis-value">{formatDate(investment.closure.closureDate)}</span>
+            </div>
+            <div className="analysis-row" style={{ backgroundColor: '#f3f4f6', borderTop: '1px solid #d1d5db', paddingTop: '8px', marginTop: '8px' }}>
+              <span className="analysis-label">Actual Payout:</span>
+              <span className="analysis-value" style={{ fontWeight: 'bold', color: '#15803d', fontSize: '1.1em' }}>{formatCurrency(investment.closure.actualPayoutAmount)}</span>
+            </div>
+            {((investment.closure?.actualPayoutAmount ?? 0) - netMaturityAmount) !== 0 && (
+              <div className="analysis-row" style={{ color: ((investment.closure?.actualPayoutAmount ?? 0) - netMaturityAmount) > 0 ? '#15803d' : '#dc2626' }}>
+                <span className="analysis-label">Adjustment Delta:</span>
+                <span className="analysis-value">{((investment.closure?.actualPayoutAmount ?? 0) - netMaturityAmount) > 0 ? '+' : ''}{formatCurrency((investment.closure?.actualPayoutAmount ?? 0) - netMaturityAmount)}</span>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {investment.prematureClosure?.isClosed && getClosureDiagnostics(investment, investment.prematureClosure) && (
+      {investment.prematureClosure?.isClosed && prematureDiag && (
         <div className="closure-diagnostics-card" role="region" aria-label="Closure diagnostics">
           <div className="diagnostics-header">
             <h3>Premature Closure Details</h3>
           </div>
           <div className="diagnostics-grid">
-            {(() => {
-              const diag = getClosureDiagnostics(investment, investment.prematureClosure);
-              return (
-                <>
-                  <div className="diag-row">
-                    <span className="diag-label">Days Held:</span>
-                    <span className="diag-value">{diag.daysHeld} of {diag.daysToMaturity} days ({diag.percentageHeld})</span>
-                  </div>
-                  <div className="diag-row">
-                    <span className="diag-label">Original Rate:</span>
-                    <span className="diag-value">{diag.originalRate}%</span>
-                  </div>
-                  {diag.penaltyRate > 0 && (
-                    <div className="diag-row">
-                      <span className="diag-label">Penalty Rate:</span>
-                      <span className="diag-value" style={{ color: '#dc2626' }}>−{diag.penaltyRate}%</span>
-                    </div>
-                  )}
-                  <div className="diag-row">
-                    <span className="diag-label">Effective Rate:</span>
-                    <span className="diag-value">{diag.effectiveRate}%</span>
-                  </div>
-                  <div className="diag-row">
-                    <span className="diag-label">Recalculated Interest:</span>
-                    <span className="diag-value">{formatCurrency(diag.recalculatedInterest)}</span>
-                  </div>
-                  {diag.penaltyAmount > 0 && (
-                    <div className="diag-row">
-                      <span className="diag-label">Penalty Deduction:</span>
-                      <span className="diag-value" style={{ color: '#dc2626' }}>−{formatCurrency(diag.penaltyAmount)}</span>
-                    </div>
-                  )}
-                  <div className="diag-row" style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', marginTop: '8px', fontWeight: 'bold' }}>
-                    <span className="diag-label">Final Payout:</span>
-                    <span className="diag-value" style={{ color: '#15803d' }}>{formatCurrency(diag.finalPayout)}</span>
-                  </div>
-                </>
-              );
-            })()}
+            <div className="diag-row">
+              <span className="diag-label">Days Held:</span>
+              <span className="diag-value">{prematureDiag.daysHeld} of {prematureDiag.daysToMaturity} days ({prematureDiag.percentageHeld})</span>
+            </div>
+            <div className="diag-row">
+              <span className="diag-label">Original Rate:</span>
+              <span className="diag-value">{prematureDiag.originalRate}%</span>
+            </div>
+            {prematureDiag.penaltyRate > 0 && (
+              <div className="diag-row">
+                <span className="diag-label">Penalty Rate:</span>
+                <span className="diag-value" style={{ color: '#dc2626' }}>−{prematureDiag.penaltyRate}%</span>
+              </div>
+            )}
+            <div className="diag-row">
+              <span className="diag-label">Effective Rate:</span>
+              <span className="diag-value">{prematureDiag.effectiveRate}%</span>
+            </div>
+            <div className="diag-row">
+              <span className="diag-label">Recalculated Interest:</span>
+              <span className="diag-value">{formatCurrency(prematureDiag.recalculatedInterest)}</span>
+            </div>
+            {prematureDiag.penaltyAmount > 0 && (
+              <div className="diag-row">
+                <span className="diag-label">Penalty Deduction:</span>
+                <span className="diag-value" style={{ color: '#dc2626' }}>−{formatCurrency(prematureDiag.penaltyAmount)}</span>
+              </div>
+            )}
+            <div className="diag-row" style={{ borderTop: '1px solid #d1d5db', paddingTop: '8px', marginTop: '8px', fontWeight: 'bold' }}>
+              <span className="diag-label">Final Payout:</span>
+              <span className="diag-value" style={{ color: '#15803d' }}>{formatCurrency(prematureDiag.finalPayout)}</span>
+            </div>
           </div>
         </div>
       )}

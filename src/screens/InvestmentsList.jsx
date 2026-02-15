@@ -316,16 +316,16 @@ export default function InvestmentsList({ onSelectInvestment }) {
                 style={{ cursor: 'pointer' }}
                 aria-label={`Investment ${investment.externalInvestmentId || investment.id} - ${investment.status}. Click to view details.`}
               >
-                <td className="cell-id">{investment.externalInvestmentId || investment.id}</td>
-                <td className="cell-name">{mockOwners.find((o) => o.id === investment.ownerId)?.name || '—'}</td>
-                <td className="cell-name">{mockBanks.find((b) => b.id === investment.bankId)?.name || '—'}</td>
-                <td className="cell-name">{mockBanks.find((b) => b.id === investment.bankId)?.branch || '—'}</td>
-                <td className="cell-interest-rate">{investment.interestRate ? `${investment.interestRate}%` : '—'}</td>
-                <td className="cell-principal">{formatCurrency(investment.principal)}</td>
-                <td className="cell-date">{formatDate(investment.startDate)}</td>
-                <td className="cell-date">{formatDate(investment.maturityDate)}</td>
-                <td className="cell-maturity">{getEffectiveMaturityAmount(investment, mockCashFlows) ? formatCurrency(getEffectiveMaturityAmount(investment, mockCashFlows)) : '—'}</td>
-                <td className="cell-status">
+                <td className="cell-id" data-label="Investment ID">{investment.externalInvestmentId || investment.id}</td>
+                <td className="cell-name" data-label="Owner">{mockOwners.find((o) => o.id === investment.ownerId)?.name || '—'}</td>
+                <td className="cell-name" data-label="Bank">{mockBanks.find((b) => b.id === investment.bankId)?.name || '—'}</td>
+                <td className="cell-name" data-label="Branch">{mockBanks.find((b) => b.id === investment.bankId)?.branch || '—'}</td>
+                <td className="cell-interest-rate" data-label="Interest Rate">{investment.interestRate ? `${investment.interestRate}%` : '—'}</td>
+                <td className="cell-principal" data-label="Principal">{formatCurrency(investment.principal)}</td>
+                <td className="cell-date" data-label="Start Date">{formatDate(investment.startDate)}</td>
+                <td className="cell-date" data-label="Maturity Date">{formatDate(investment.maturityDate)}</td>
+                <td className="cell-maturity" data-label="Maturity Amount">{getEffectiveMaturityAmount(investment, mockCashFlows) ? formatCurrency(getEffectiveMaturityAmount(investment, mockCashFlows)) : '—'}</td>
+                <td className="cell-status" data-label="Status">
                   <span className={`status-badge status-${investment.status}`} aria-label={`Status: ${investment.status.charAt(0).toUpperCase() + investment.status.slice(1)}`}>
                     {investment.status.charAt(0).toUpperCase() + investment.status.slice(1)}
                   </span>

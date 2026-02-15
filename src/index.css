@@ -3,9 +3,23 @@
   line-height: 1.5;
   font-weight: 400;
 
+  /* Design tokens - mobile-first */
+  --wb-bg: #ffffff;
+  --wb-surface: #f8fafc;
+  --wb-muted: #6b7280;
+  --wb-text: #0f172a;
+  --wb-primary: #2563eb;
+  --wb-accent: #059669;
+  --wb-danger: #dc2626;
+  --wb-radius: 10px;
+  --wb-gap-sm: 0.5rem;
+  --wb-gap: 1rem;
+  --wb-gap-lg: 1.5rem;
+  --wb-shadow: 0 2px 8px rgba(0,0,0,0.06);
+
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: var(--wb-text);
+  background-color: var(--wb-surface);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -22,13 +36,50 @@ a:hover {
   color: #535bf2;
 }
 
+html, body {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+}
+
+*, *:before, *:after { box-sizing: inherit; }
+
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  display: block;
+  min-width: 0;
   min-height: 100vh;
+  width: 100%;
 }
+
+/* Mobile-first typography and touch targets */
+html { font-size: 16px; }
+body { font-size: 16px; }
+
+input, textarea, select, button {
+  font-size: 16px;
+}
+
+/* Minimum touch target size */
+button, .btn-primary, .btn-secondary, input[type="button"], input[type="submit"] {
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+}
+
+/* Respect safe area (iOS notch) */
+body { padding-bottom: env(safe-area-inset-bottom, 0); }
+
+/* Utility classes */
+.wb-container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 1rem; }
+.wb-card { background: var(--wb-bg); border-radius: var(--wb-radius); box-shadow: var(--wb-shadow); padding: 0.75rem; }
+.wb-stack { display: flex; flex-direction: column; gap: var(--wb-gap-sm); }
+.wb-row { display: flex; gap: var(--wb-gap); align-items: center; }
+.wb-muted { color: var(--wb-muted); }
+.wb-small { font-size: 0.9rem; }
+.wb-number { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace; font-variant-numeric: tabular-nums; }
+
+/* Hide content overflow horizontally everywhere by default */
+html, body, #root { overflow-x: hidden; }
 
 h1 {
   font-size: 3.2em;

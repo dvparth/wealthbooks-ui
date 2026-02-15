@@ -84,11 +84,18 @@
   border-bottom: 1px solid #e5e7eb;
   margin-bottom: 6px;
   padding-bottom: 6px;
-}
-
-.info-label {
-  color: #6b7280;
-  font-weight: 500;
+  /* bottom-sheet style for small screens */
+  .adjustment-modal {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 12px 12px 0 0;
+    max-height: 80vh;
+    overflow: auto;
 }
 
 .info-value {
@@ -132,6 +139,13 @@
   color: #111827;
   background: #fff;
   transition: border-color 0.2s ease;
+}
+
+/* Ensure inputs take full width and respect box-sizing */
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-group input:focus,
@@ -219,6 +233,9 @@
 @media (max-width: 640px) {
   .adjustment-modal {
     max-width: 100%;
+    width: 100%;
+    margin: 0;
+    border-radius: 8px 8px 0 0;
   }
 
   .modal-header {

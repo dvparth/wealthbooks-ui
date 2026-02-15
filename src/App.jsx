@@ -3,9 +3,11 @@ import { useCreateInvestmentWizard } from './contexts/CreateInvestmentContext.js
 import { CreateInvestmentProvider } from './contexts/CreateInvestmentContext.jsx'
 import InvestmentsList from './screens/InvestmentsList'
 import InvestmentDetail from './screens/InvestmentDetail'
+import { mockInvestments } from './mocks/investments.js'
 import CreateInvestment from './screens/CreateInvestment'
 import CreateInvestmentStep2 from './screens/CreateInvestmentStep2'
 import CreateInvestmentStep3 from './screens/CreateInvestmentStep3'
+import BottomNav from './components/BottomNav'
 import './App.css'
 
 function AppContent() {
@@ -35,6 +37,7 @@ function AppContent() {
       console.debug('[App] updateFromPath ->', path)
       if (path === '/' || path === '') {
         setCurrentScreen('list')
+        setSelectedInvestmentId(null)
       } else if (path === '/investments/new') {
         setCurrentScreen('create')
         goToStep(1)
@@ -45,6 +48,17 @@ function AppContent() {
         setCurrentScreen('create-step3')
         goToStep(3)
       } else if (path.startsWith('/investments/')) {
+        // Expecting path like /investments/:idOrExternalId
+        const parts = path.split('/').filter(Boolean)
+        const idOrExt = parts[1] || ''
+        // Try to find by internal id first, then externalInvestmentId
+        const found = mockInvestments.find(m => m.id === idOrExt) || mockInvestments.find(m => (m.externalInvestmentId || '').toLowerCase() === idOrExt.toLowerCase())
+        if (found) {
+          setSelectedInvestmentId(found.id)
+        } else {
+          // If not found, clear selection so InvestmentDetail shows not-found
+          setSelectedInvestmentId(null)
+        }
         setCurrentScreen('detail')
       }
     }
@@ -102,6 +116,7 @@ function AppContent() {
         <InvestmentDetail investmentId={selectedInvestmentId} onBack={handleBackToList} />
       )}
       {Object.keys(creatInvestmentScreens).includes(currentScreen) && creatInvestmentScreens[currentScreen]}
+      <BottomNav />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { validatePrematureClosure, calculatePrematureClosurePayout } from '../utils/prematureClosureCalculator.js';
 import '../styles/PrematureClosureModal.css';
 
@@ -16,6 +16,7 @@ export default function PrematureClosureModal({
   const [penaltyAmount, setPenaltyAmount] = useState('');
   const [maturityOverride, setMaturityOverride] = useState(''); // User-specified payout amount
   const [errors, setErrors] = useState({});
+  const modalBodyRef = useRef(null);
 
   // Calculate payout preview as user types
   const payoutPreview = useMemo(() => {
@@ -153,7 +154,7 @@ export default function PrematureClosureModal({
 
   return (
     <div className="closure-modal-overlay">
-      <div className="closure-modal">
+      <div className="closure-modal modal-container">
         <div className="modal-header">
           <h3>Premature Closure</h3>
           <button
@@ -165,8 +166,8 @@ export default function PrematureClosureModal({
           </button>
         </div>
 
-        <div className="modal-content">
-          <div className="investment-info">
+        <div className="modal-body" ref={modalBodyRef}>
+          <div className="info-card">
             <div className="info-row">
               <span className="info-label">Investment:</span>
               <span className="info-value">{investment.name || investment.externalInvestmentId}</span>
@@ -189,10 +190,10 @@ export default function PrematureClosureModal({
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="closure-form">
+          <form id="closureForm" onSubmit={handleSubmit} className="closure-form">
             {/* Closure Date */}
-            <div className="form-group">
-              <label htmlFor="closureDate">
+            <div className="form-field section">
+              <label htmlFor="closureDate" className="section-title">
                 Closure Date <span className="required-indicator">*</span>
               </label>
               <input
@@ -205,8 +206,16 @@ export default function PrematureClosureModal({
                     setErrors({ ...errors, closureDate: undefined });
                   }
                 }}
+                onFocus={() => {
+                  // allow the native picker to escape clipping while open
+                  try { modalBodyRef.current && modalBodyRef.current.classList.add('date-focus'); } catch {}
+                }}
+                onBlur={() => {
+                  try { modalBodyRef.current && modalBodyRef.current.classList.remove('date-focus'); } catch {}
+                }}
                 max={investment.maturityDate}
                 className={errors.closureDate ? 'input-error' : ''}
+                aria-label="Closure Date"
               />
               {errors.closureDate && (
                 <span className="error-message">{errors.closureDate}</span>
@@ -224,22 +233,23 @@ export default function PrematureClosureModal({
             )}
 
             {/* Payout Calculation Method */}
-            <div className="form-group">
-              <label>Payout Calculation Method</label>
+            <div className="form-group section">
+              <label className="section-title">Payout Calculation Method</label>
               <div className="radio-group">
-                <label className="radio-label">
+                <label className="radio-option">
                   <input
                     type="radio"
                     value="calculated"
                     checked={!maturityOverride}
                     onChange={() => {
                       setMaturityOverride('');
+                      setClosureDate('');
                       setErrors({ ...errors, maturityOverride: undefined });
                     }}
                   />
-                  Calculate based on interest & penalties
+                  <span className="radio-label">Calculate based on interest & penalties</span>
                 </label>
-                <label className="radio-label">
+                <label className="radio-option">
                   <input
                     type="radio"
                     value="override"
@@ -250,15 +260,15 @@ export default function PrematureClosureModal({
                       setErrors({ ...errors, penaltyRate: undefined, penaltyAmount: undefined });
                     }}
                   />
-                  Specify exact payout amount
+                  <span className="radio-label">Specify exact payout amount</span>
                 </label>
               </div>
             </div>
 
             {/* Maturity Override Input */}
             {maturityOverride !== '' && (
-              <div className="form-group">
-                <label htmlFor="maturityOverride">
+              <div className="form-group section">
+                <label htmlFor="maturityOverride" className="section-title">
                   Payout Amount (₹) <span className="required-indicator">*</span>
                 </label>
                 <input
@@ -284,10 +294,10 @@ export default function PrematureClosureModal({
             {/* Penalty Selection (only show if not using override) */}
             {maturityOverride === '' && (
               <>
-                <div className="form-group">
-                  <label>Penalty Type</label>
+                <div className="form-group section">
+                  <label className="section-title">Penalty Type</label>
                   <div className="radio-group">
-                    <label className="radio-label">
+                    <label className="radio-option">
                       <input
                         type="radio"
                         value="none"
@@ -297,9 +307,9 @@ export default function PrematureClosureModal({
                           setErrors({ ...errors, penaltyRate: undefined, penaltyAmount: undefined });
                         }}
                       />
-                      No penalty
+                      <span className="radio-label">No penalty</span>
                     </label>
-                    <label className="radio-label">
+                    <label className="radio-option">
                       <input
                         type="radio"
                         value="rate"
@@ -309,9 +319,9 @@ export default function PrematureClosureModal({
                           setErrors({ ...errors, penaltyRate: undefined });
                         }}
                       />
-                      Reduce interest rate by %
+                      <span className="radio-label">Reduce interest rate by %</span>
                     </label>
-                    <label className="radio-label">
+                    <label className="radio-option">
                       <input
                         type="radio"
                         value="amount"
@@ -321,7 +331,7 @@ export default function PrematureClosureModal({
                           setErrors({ ...errors, penaltyAmount: undefined });
                         }}
                       />
-                      Fixed penalty amount
+                      <span className="radio-label">Fixed penalty amount</span>
                     </label>
                   </div>
                 </div>
@@ -408,16 +418,17 @@ export default function PrematureClosureModal({
               <div className="error-message-general">{errors.penalty}</div>
             )}
 
-            {/* Actions */}
-            <div className="form-actions">
-              <button type="submit" className="btn-primary">
-                Confirm Closure
-              </button>
-              <button type="button" className="btn-secondary" onClick={handleCancel}>
-                Cancel
-              </button>
-            </div>
+            {/* Actions are placed in modal footer to keep footer sticky */}
           </form>
+        </div>
+
+        <div className="modal-footer">
+          <button type="submit" form="closureForm" className="btn-primary confirm-btn">
+            Confirm Closure
+          </button>
+          <button type="button" className="btn-secondary cancel-btn" onClick={handleCancel}>
+            Cancel
+          </button>
         </div>
       </div>
     </div>

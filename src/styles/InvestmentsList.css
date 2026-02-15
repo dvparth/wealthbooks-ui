@@ -110,6 +110,10 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+    /* ensure last list rows can scroll above fixed bottom nav
+      padding: bottom nav height (56px) + small buffer to avoid overlap
+      include safe-area inset for devices with home indicator */
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 /* Table Styles - compact */
@@ -261,5 +265,99 @@
   .investments-filters select { font-size: 0.8rem; padding: 0.35rem 0.45rem; }
   .investments-table thead th { font-size: 0.66rem; }
   .investments-table td { font-size: 0.74rem; padding: 0.35rem 0.45rem; }
+}
+
+/* Mobile: convert wide table into stacked cards for small screens */
+@media (max-width: 640px) {
+  .investments-table thead {
+    display: none;
+  }
+
+  .investments-table tbody tr {
+    display: block;
+    margin: 0.5rem;
+    border-radius: 10px;
+    padding: 0.5rem;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    border: 1px solid #e6e9ee;
+  }
+
+  .investments-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.45rem 0.5rem;
+    border-bottom: none;
+  }
+
+  .investments-table td::before {
+    content: attr(data-label);
+    flex: 0 0 36%;
+    max-width: 36%;
+    margin-right: 0.5rem;
+    font-size: 0.72rem;
+    color: #6b7280;
+    font-weight: 600;
+    text-transform: none;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .investments-table td .status-badge {
+    margin-left: 0.4rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.68rem;
+  }
+
+  .investments-table td.cell-principal,
+  .investments-table td.cell-maturity,
+  .investments-table td.cell-interest-rate {
+    text-align: right;
+    min-width: 28%;
+  }
+
+  /* ensure values take remaining space and align consistently */
+  .investments-table td {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem;
+  }
+
+  .investments-table td * {
+    /* children inherit wrapping behavior */
+    max-width: 100%;
+  }
+
+  /* numeric/monospaced cells: keep value right aligned */
+  .investments-table td.cell-principal > .value,
+  .investments-table td.cell-maturity > .value,
+  .investments-table td.cell-interest-rate > .value,
+  .investments-table td.cell-date > .value {
+    text-align: right;
+    flex: 0 0 58%;
+  }
+
+  /* if cell content isn't wrapped in a value span, ensure the last child aligns right */
+  .investments-table td > :last-child { flex: 1 1 auto; text-align: right; }
+
+  .investments-table tbody tr:hover {
+    background-color: #ffffff;
+  }
+
+  /* Keep ID and Owner as label/value rows so labels align consistently */
+  .investments-table td.cell-id,
+  .investments-table td.cell-name {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+  }
+
+  /* allow status cell to shrink to avoid horizontal scroll */
+  .investments-table td.cell-status { min-width: auto; }
 }
 

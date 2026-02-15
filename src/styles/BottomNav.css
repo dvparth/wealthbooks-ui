@@ -1,0 +1,30 @@
+.wb-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem env(safe-area-inset-right, 0.5rem) calc(12px + env(safe-area-inset-bottom, 0.5rem)) env(safe-area-inset-left, 0.5rem);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,250,0.98));
+  border-top: 1px solid #e6e9ee;
+  box-shadow: 0 -6px 18px rgba(0,0,0,0.06);
+  z-index: 1000;
+}
+
+.wb-nav-btn {
+  flex: 1 1 auto;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  border: none;
+  background: #f3f4f6;
+  color: #111827;
+  font-weight: 600;
+}
+
+@media (min-width: 768px) {
+  .wb-bottom-nav { display: none; }
+}
