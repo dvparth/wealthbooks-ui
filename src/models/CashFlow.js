@@ -41,6 +41,7 @@ export const createCashFlow = (data) => {
     adjustsCashflowId: data.adjustsCashflowId || null,
     linkedTo: data.linkedTo || null,
     reason: data.reason || null,
+    metadata: data.metadata || null,
     isManual: data.source === 'manual' || data.type === 'ADJUSTMENT',
     // For reinvestments/transfers: explicit source and target investment references
     sourceInvestmentId: data.sourceInvestmentId || null,

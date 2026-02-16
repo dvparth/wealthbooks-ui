@@ -84,18 +84,6 @@
   border-bottom: 1px solid #e5e7eb;
   margin-bottom: 6px;
   padding-bottom: 6px;
-  /* bottom-sheet style for small screens */
-  .adjustment-modal {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    margin: 0;
-    width: 100%;
-    max-width: 100%;
-    border-radius: 12px 12px 0 0;
-    max-height: 80vh;
-    overflow: auto;
 }
 
 .info-value {
@@ -253,5 +241,19 @@
   .btn-secondary,
   .btn-primary {
     width: 100%;
+  }
+
+  /* bottom-sheet style for small screens */
+  .adjustment-modal {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 12px 12px 0 0;
+    max-height: 80vh;
+    overflow: auto;
   }
 }

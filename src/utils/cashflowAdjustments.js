@@ -324,8 +324,9 @@ export const generatePrematureClosureCashflows = (investment, prematureClosure, 
   const { closureDate, recalculatedInterest, penaltyAmount, finalPayout } = prematureClosure;
 
   // 1. Generate MATURITY_PAYOUT on closure date
+  let maturityCf = null;
   if (finalPayout !== undefined && finalPayout !== null) {
-    cashflows.push(createCashFlow({
+    maturityCf = createCashFlow({
       investmentId: investment.id,
       date: closureDate,
       type: 'maturity_payout',
@@ -333,12 +334,15 @@ export const generatePrematureClosureCashflows = (investment, prematureClosure, 
       financialYear: financialYear,
       status: 'confirmed',
       source: 'system',
-    }));
+    });
+
+    cashflows.push(maturityCf);
   }
 
   // 2. Generate PENALTY cashflow if penalty was applied
+  let penaltyCf = null;
   if (penaltyAmount && penaltyAmount > 0) {
-    cashflows.push(createCashFlow({
+    penaltyCf = createCashFlow({
       investmentId: investment.id,
       date: closureDate,
       type: 'penalty',
@@ -347,7 +351,9 @@ export const generatePrematureClosureCashflows = (investment, prematureClosure, 
       status: 'confirmed',
       source: 'system',
       reason: 'Premature closure penalty',
-    }));
+    });
+
+    cashflows.push(penaltyCf);
   }
 
   // 3. Generate TDS_DEDUCTION if applicable and recalculated interest > 0
@@ -357,8 +363,9 @@ export const generatePrematureClosureCashflows = (investment, prematureClosure, 
     const tdsRate = 10; // Standard TDS rate (can be parametrized)
     const tdsAmount = Math.round((recalculatedInterest * tdsRate) / 100);
 
+    let tdsCf = null;
     if (tdsAmount > 0) {
-      cashflows.push(createCashFlow({
+      tdsCf = createCashFlow({
         investmentId: investment.id,
         date: closureDate,
         type: 'tds_deduction',
@@ -366,11 +373,20 @@ export const generatePrematureClosureCashflows = (investment, prematureClosure, 
         financialYear: financialYear,
         status: 'confirmed',
         source: 'system',
-      }));
+      });
+
+      cashflows.push(tdsCf);
     }
   }
 
   // 4. Mark closure with a PREMATURE_CLOSURE type cashflow for audit trail
+  // 4. Mark closure with a PREMATURE_CLOSURE type cashflow for audit trail
+  // Attach metadata to help link generated entries and make UI/reporting actionable
+  const linkedIds = [];
+  if (maturityCf) linkedIds.push(maturityCf.id);
+  if (penaltyCf) linkedIds.push(penaltyCf.id);
+  if (typeof tdsCf !== 'undefined' && tdsCf && tdsCf.id) linkedIds.push(tdsCf.id);
+
   cashflows.push(createCashFlow({
     investmentId: investment.id,
     date: closureDate,
@@ -380,6 +396,14 @@ export const generatePrematureClosureCashflows = (investment, prematureClosure, 
     status: 'confirmed',
     source: 'system',
     reason: `Investment closed prematurely. Original maturity: ${investment.maturityDate}`,
+    metadata: {
+      originalMaturityDate: investment.maturityDate,
+      finalPayout: finalPayout,
+      penaltyAmount: penaltyAmount || 0,
+      recalculatedInterest: recalculatedInterest || 0,
+      linkedCashflowIds: linkedIds,
+      performedBy: 'system',
+    }
   }));
 
   return cashflows;
